@@ -1,0 +1,92 @@
+/* Global styles - these will be combined with the pre-compiled Tailwind CSS */
+
+/* Custom styles for MDX content - using standard CSS instead of Tailwind @apply */
+.mdx-content {
+  /* Standard styling that complements Tailwind's typography plugin */
+  max-width: none;
+}
+
+/* 
+ * Note: All Tailwind styles are now provided by the pre-compiled CSS file.
+ * These style comments document the original Tailwind classes that were used.
+ */
+
+/* 
+ * Custom styling for editor components
+ * These Tailwind classes are now included in the pre-compiled CSS
+ *
+ * .editor-container - Previously: w-full h-full flex flex-col
+ * 
+ * .dropzone - Previously: 
+ *   - border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer transition-colors
+ *   - border-gray-300 hover:border-primary-500 bg-gray-50 hover:bg-gray-100
+ *
+ * .dropzone.active - Previously: border-primary-500 bg-primary-50
+ */
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  /* Previously: w-2 */
+  width: 0.5rem;
+}
+
+::-webkit-scrollbar-track {
+  /* Previously: bg-gray-100 rounded-full */
+  background-color: #f3f4f6;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background-color: #2d3748; /* dark:bg-gray-700 */
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb {
+  /* Previously: bg-gray-300 rounded-full hover:bg-gray-400 */
+  background-color: #d1d5db;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #4a5568; /* dark:bg-gray-600 */
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #718096; /* dark:bg-gray-500 */
+}
+
+/* Custom scrollbar for specific components */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 0.4rem;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(209, 213, 219, 0.8); /* semi-transparent */
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(74, 85, 104, 0.8); /* semi-transparent */
+}
+
+/* 
+ * Custom components styling - these are now included in the pre-compiled CSS
+ * Original Tailwind classes are documented below for reference
+ */
+
+/*
+Component classes included in pre-compiled CSS:
+
+.btn - px-4 py-2 rounded-md font-medium transition-colors duration-200
+.btn-primary - bg-primary-600 text-white hover:bg-primary-700
+.btn-secondary - bg-secondary-600 text-white hover:bg-secondary-700
+.btn-outline - border border-gray-300 text-gray-700 hover:bg-gray-100
+.card - bg-white rounded-lg shadow-md overflow-hidden
+.input - px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
+.badge - inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+.badge-primary - bg-primary-100 text-primary-800
+*/
