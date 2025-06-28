@@ -1,7 +1,7 @@
-import { simpleGit, SimpleGit } from 'simple-git';
+import { simpleGit, StatusResult } from 'simple-git';
 import fs from 'fs-extra';
 import path from 'path';
-import { Repository, GitOperation } from '@/types';
+import { Repository } from '@/types';
 
 const REPOS_DIR = path.join(process.cwd(), 'repositories');
 
@@ -170,7 +170,7 @@ export const commitAndPushChanges = async (
 // Get the status of a repository
 export const getRepositoryStatus = async (
   repoPath: string
-): Promise<{ clean: boolean; status: any }> => {
+): Promise<{ clean: boolean; status: StatusResult }> => {
   try {
     const git = simpleGit(repoPath);
     

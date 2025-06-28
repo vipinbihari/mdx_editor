@@ -27,10 +27,11 @@ mdx_editor/
 │   ├── repositories/           # Cloned repositories (git-ignored)
 │   ├── src/
 │   │   ├── components/         # React components
-│   │   │   ├── editor/         # Editor-specific components
+│   │   ├── contexts/           # React contexts
+│   │   ├── hooks/              # React hooks
+│   │   ├── lib/                # Library files
 │   │   ├── pages/              # Next.js pages and API routes
 │   │   │   ├── api/           # Backend API endpoints
-│   │   │   ├── editor/        # Editor pages
 │   │   ├── styles/             # CSS styles
 │   │   ├── types/              # TypeScript interfaces
 │   │   └── utils/              # Utility functions
@@ -123,16 +124,17 @@ yarn dev
 
 ## API Endpoints
 
-- `GET /api/repos`: List cloned repositories
-- `POST /api/repos/clone`: Clone a new repository
-- `POST /api/repos/pull`: Pull latest changes for a repository
-- `GET /api/posts/:repoName`: List posts in a repository
-- `GET /api/posts/:repoName/:slug`: Get a specific post
-- `PUT /api/posts/:repoName/:slug`: Update a post
-- `DELETE /api/posts/:repoName/:slug`: Delete a post and its associated images
+- `GET /api/repositories`: List cloned repositories
+- `POST /api/repositories/clone`: Clone a new repository
+- `POST /api/repositories/pull`: Pull latest changes for a repository
+- `POST /api/repositories/delete`: Delete a repository
+- `POST /api/repositories/commit`: Commit and push changes
+- `GET /api/posts?repoName=<repoName>`: List posts in a repository (with pagination)
+- `GET /api/posts/[repoName]/[slug]`: Get a specific post
+- `PUT /api/posts/[repoName]/[slug]`: Update a post
+- `DELETE /api/posts/[repoName]/[slug]`: Delete a post
+- `GET /api/image?repoName=<repoName>&imagePath=<imagePath>`: Get an image
 - `POST /api/images/replace`: Replace an image
-- `GET /api/repos/status/:repoName`: Get git status for a repository
-- `POST /api/repos/commit`: Commit and push changes
 - `GET /api/system-prompt`: Get the system prompt for hero image generation
 - `GET /api/inblog-system-prompt`: Get the system prompt for in-blog image generation
 

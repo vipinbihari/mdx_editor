@@ -7,7 +7,7 @@ interface InBlogImagePromptProps {
 const InBlogImagePrompt: React.FC<InBlogImagePromptProps> = ({
   content,
 }) => {
-  const [systemPrompt, setSystemPrompt] = useState<string>('');
+  
   const [fullPrompt, setFullPrompt] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
@@ -20,8 +20,6 @@ const InBlogImagePrompt: React.FC<InBlogImagePromptProps> = ({
         const data = await response.json();
         
         if (data.prompt) {
-          setSystemPrompt(data.prompt);
-          
           // Transform content
           const transformedContent = transformContent(content);
           
@@ -42,18 +40,13 @@ const InBlogImagePrompt: React.FC<InBlogImagePromptProps> = ({
   const transformContent = (content: string): string => {
     let transformedContent = content;
     let inBlogImageCounter = 1;
-    let altTextCounter = 1;
     
-    // Replace image prompts with {INSERT IN BLOG IMAGE n}
+    // Replace any markdown image format with /images/uploads/ path
+    // ![any alt text](/images/uploads/...) with {INSERT IN BLOG IMAGE N} 
+    // where N increments with each occurrence
     transformedContent = transformedContent.replace(
-      /{\/\* Image prompt: [\s\S]*?\*\/}/g,
+      /!\[[^\]]*\]\(\/images\/uploads\/[^)]+\)/g,
       () => `{INSERT IN BLOG IMAGE ${inBlogImageCounter++}}`
-    );
-    
-    // Replace image alt text with ALT TEXT n
-    transformedContent = transformedContent.replace(
-      /!\[([\s\S]*?)\]\(([^)]+)\)/g,
-      (match, altText, url) => `![ALT TEXT ${altTextCounter++}](${url})`
     );
     
     return transformedContent;

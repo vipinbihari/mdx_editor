@@ -6,7 +6,7 @@ import { BlogPost, BlogPostFrontmatter, BlogImage, ImageReplaceParams } from '@/
 /**
  * Extracts all image references from MDX content
  */
-export const extractImageReferences = (content: string, slug: string): BlogImage[] => {
+export const extractImageReferences = (content: string): BlogImage[] => {
   // Regular expression to match Markdown image syntax: ![alt text](/images/uploads/slug/image.jpg)
   const imageRegex = /!\[(.*?)\]\((\/images\/uploads\/[^)]+)\)/g;
   const images: BlogImage[] = [];
@@ -42,7 +42,7 @@ export const readMdxFile = async (filePath: string): Promise<BlogPost | null> =>
     const frontmatter = data as BlogPostFrontmatter;
     
     // Extract image references from content
-    const images = extractImageReferences(content, frontmatter.slug);
+    const images = extractImageReferences(content);
     
     // Add hero image to images array if it exists
     if (frontmatter.heroImage) {
@@ -316,9 +316,9 @@ export const saveBlogPost = async (
     }
     
     return { success: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error(`Failed to save blog post:`, error);
-    return { success: false, error: error.message || 'Unknown error saving blog post' };
+    return { success: false, error: (error as Error).message || 'Unknown error saving blog post' };
   }
 };
 
@@ -330,7 +330,7 @@ export const replaceImage = async (
   params: ImageReplaceParams
 ): Promise<string | null> => {
   try {
-    const { postSlug, oldImagePath, newImage, isHeroImage } = params;
+    const { postSlug, oldImagePath, newImage } = params;
     
     // Extract the image file name from the old path
     const oldImageFileName = path.basename(oldImagePath);

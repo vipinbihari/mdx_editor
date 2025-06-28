@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import path from 'path';
-import { IncomingForm } from 'formidable';
+import { IncomingForm, Fields, Files } from 'formidable';
 import fs from 'fs-extra';
-import { replaceImage } from '@/utils/mdxOperations';
 
 // Configure Next.js to handle file uploads
 export const config = {
@@ -29,7 +28,7 @@ export default async function handler(
     });
 
     // Process the form data using a promisified version of form.parse
-    const [fields, files] = await new Promise<[any, any]>((resolve, reject) => {
+    const [fields, files] = await new Promise<[Fields, Files]>((resolve, reject) => {
       form.parse(req, (err, fields, files) => {
         if (err) return reject(err);
         resolve([fields, files]);
@@ -40,7 +39,7 @@ export default async function handler(
     const repoName = Array.isArray(fields.repoName) ? fields.repoName[0] : fields.repoName;
     const slug = Array.isArray(fields.slug) ? fields.slug[0] : fields.slug;
     const oldImagePath = Array.isArray(fields.oldImagePath) ? fields.oldImagePath[0] : fields.oldImagePath;
-    const isHero = (Array.isArray(fields.isHero) ? fields.isHero[0] : fields.isHero) === 'true';
+    
     
     // Validate required fields
     if (!repoName || !slug || !oldImagePath || !files.file) {
@@ -96,7 +95,7 @@ export default async function handler(
     
     // Extract the filename and extension from the original file path
     const oldFilename = path.basename(oldImagePath);
-    const fileExt = path.extname(fileInfo.originalFilename || '') || path.extname(oldImagePath);
+    
     
     // Create the uploads directory path for this post
     const uploadsDir = path.join(repoPath, 'uploads', slug);
@@ -120,8 +119,8 @@ export default async function handler(
       success: true, 
       newImagePath: mdxImagePath 
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error replacing image:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(500).json({ error: (error as Error).message || 'Internal server error' });
   }
 }

@@ -82,8 +82,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Send the image
     return res.send(imageBuffer);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error serving image:', error);
-    return res.status(500).json({ error: error.message || 'Failed to serve image' });
+    return res.status(500).json({ error: (error as Error).message || 'Failed to serve image' });
   }
 }

@@ -46,7 +46,7 @@ export default function Home() {
         });
       }
     }
-  }, [pageFromUrl, repoNameFromUrl, repositories]);
+  }, [pageFromUrl, repoNameFromUrl, repositories, currentRepo]);
 
   // Load repositories on component mount
   useEffect(() => {
@@ -63,8 +63,8 @@ export default function Home() {
           setRepositories(repos);
           // No longer doing repo selection here, it's handled by the URL parameters effect
         }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load repositories');
+      } catch (err) {
+        setError((err as Error).message || 'Failed to load repositories');
       } finally {
         setLoading(false);
       }
@@ -74,7 +74,12 @@ export default function Home() {
   }, []);
   
   // Handle repository selection (only for explicit user selection from dropdown)
-  const handleSelectRepo = async (repo: Repository) => {
+  const handleSelectRepo = async (repo: Repository | null) => {
+    if (!repo) {
+      setCurrentRepo(null);
+      router.push('/', undefined, { shallow: true });
+      return;
+    }
     try {
       setLoading(true);
       const response = await fetch(`/api/repositories/select`, {
@@ -107,8 +112,8 @@ export default function Home() {
           }, undefined, { shallow: true });
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to select repository');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to select repository');
     } finally {
       setLoading(false);
     }
@@ -141,8 +146,8 @@ export default function Home() {
         setShowCommitModal(false);
         // Show success message or notification here
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to commit changes');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to commit changes');
     } finally {
       setLoading(false);
     }

@@ -1166,6 +1166,9 @@ video {
 .w-8 {
   width: 2rem;
 }
+.w-auto {
+  width: auto;
+}
 .w-full {
   width: 100%;
 }

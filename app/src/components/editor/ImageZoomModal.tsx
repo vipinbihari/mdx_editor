@@ -56,10 +56,13 @@ const ImageZoomModal: React.FC<ImageZoomModalProps> = ({
         
         <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-xl max-w-full max-h-full">
           <div className="relative">
-            <img
+            <Image
               src={imageSrc}
               alt={altText}
-              className="max-w-full max-h-[80vh] object-contain"
+              width={0}
+              height={0}
+              sizes="100vw"
+              className="w-auto h-auto max-w-full max-h-[80vh] object-contain"
             />
           </div>
         </div>

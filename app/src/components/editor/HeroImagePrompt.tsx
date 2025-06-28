@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import fs from 'fs/promises';
-import path from 'path';
+
 
 interface HeroImagePromptProps {
   content: string;
@@ -9,7 +8,7 @@ interface HeroImagePromptProps {
 const HeroImagePrompt: React.FC<HeroImagePromptProps> = ({
   content,
 }) => {
-  const [systemPrompt, setSystemPrompt] = useState<string>('');
+  
   const [fullPrompt, setFullPrompt] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
@@ -22,7 +21,6 @@ const HeroImagePrompt: React.FC<HeroImagePromptProps> = ({
         const data = await response.json();
         
         if (data.prompt) {
-          setSystemPrompt(data.prompt);
           // Combine system prompt with blog content
           setFullPrompt(`${data.prompt}\n\n${content}`);
         }

@@ -46,7 +46,7 @@ const CommitChangesModal: React.FC<CommitChangesModalProps> = ({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               className="w-full h-24 resize-none border rounded-lg p-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all duration-200 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:placeholder-gray-400"
-              placeholder="Describe the changes you've made..."
+              placeholder="Describe the changes you&apos;ve made..."
               required
               disabled={loading}
             />

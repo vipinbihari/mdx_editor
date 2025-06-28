@@ -71,16 +71,16 @@ export default async function handler(
         }
         
         return res.status(200).json({ success: true });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Error deleting post:', error);
-        return res.status(500).json({ error: error.message || 'Failed to delete post' });
+        return res.status(500).json({ error: (error as Error).message || 'Failed to delete post' });
       }
     }
     
     // Handle unsupported methods
     return res.status(405).json({ error: 'Method not allowed' });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error handling post:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(500).json({ error: (error as Error).message || 'Internal server error' });
   }
 }

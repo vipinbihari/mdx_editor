@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { BlogPost } from '@/types';
 
 interface PreviewModalProps {
@@ -102,9 +103,11 @@ const PreviewModal: React.FC<PreviewModalProps> = ({ post, repoName, onClose }) 
             )}
             {post.frontmatter.heroImage && (
               <div className="mt-6">
-                <img
+                <Image
                   src={`/api/image?repoName=${repoName}&imagePath=${post.frontmatter.heroImage}`}
                   alt={post.frontmatter.title}
+                  width={800} 
+                  height={400}
                   className="w-full h-auto object-cover rounded-lg"
                   onError={(e) => {
                     // If image fails to load, show fallback

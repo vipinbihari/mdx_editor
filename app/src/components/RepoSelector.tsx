@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Repository } from '@/types';
 import Button from './ui/Button';
 import ConfirmDialog from './ConfirmDialog';
@@ -6,7 +6,7 @@ import ConfirmDialog from './ConfirmDialog';
 interface RepoSelectorProps {
   repositories: Repository[];
   currentRepo: Repository | null;
-  onSelectRepo: (repo: Repository) => void;
+  onSelectRepo: (repo: Repository | null) => void;
   loading: boolean;
 }
 
@@ -24,6 +24,21 @@ const RepoSelector: React.FC<RepoSelectorProps> = ({
   const [deletingRepo, setDeletingRepo] = useState<Repository | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Auto-extract repo name from URL
+    if (newRepoUrl) {
+      try {
+        const url = new URL(newRepoUrl);
+        const repoName = url.pathname.split('/').pop()?.replace('.git', '');
+        if (repoName) {
+          setNewRepoName(repoName);
+        }
+      } catch {
+        // Ignore invalid URL format during typing
+      }
+    }
+  }, [newRepoUrl]);
 
   const handleAddRepo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,8 +78,8 @@ const RepoSelector: React.FC<RepoSelectorProps> = ({
           onSelectRepo(data.repository);
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to clone repository');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to clone repository');
     } finally {
       setCloneLoading(false);
     }
@@ -91,8 +106,8 @@ const RepoSelector: React.FC<RepoSelectorProps> = ({
         // Handle successful pull
         // Maybe show a notification
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to pull repository');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to pull repository');
     } finally {
       // Clear the loading state for this repo
       setPullingRepos(prev => {
@@ -132,12 +147,12 @@ const RepoSelector: React.FC<RepoSelectorProps> = ({
             onSelectRepo(nextRepo);
           } else {
             // Pass null but handle it in the parent component
-            onSelectRepo(null as any);
+            onSelectRepo(null);
           }
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete repository');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to delete repository');
     }
   };
   

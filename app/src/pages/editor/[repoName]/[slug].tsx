@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { BlogPost, BlogImage } from '@/types';
 import Header from '@/components/Header';
@@ -40,8 +40,8 @@ export default function PostEditor() {
           setPost(data.post);
           setOriginalPost(JSON.parse(JSON.stringify(data.post))); // Deep copy for comparison
         }
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch post data');
+      } catch (err) {
+        setError((err as Error).message || 'Failed to fetch post data');
       } finally {
         setLoading(false);
       }
@@ -53,15 +53,10 @@ export default function PostEditor() {
   }, [repoName, slug]);
   
   // Check if the post has unsaved changes
-  const hasUnsavedChanges = () => {
+  const hasUnsavedChanges = useCallback(() => {
     if (!post || !originalPost) return false;
-    
-    // Compare post and originalPost to detect changes
-    return (
-      JSON.stringify(post.frontmatter) !== JSON.stringify(originalPost.frontmatter) ||
-      post.content !== originalPost.content
-    );
-  };
+    return JSON.stringify(post) !== JSON.stringify(originalPost);
+  }, [post, originalPost]);
   
   // Save changes
   const handleSave = async () => {
@@ -86,15 +81,15 @@ export default function PostEditor() {
         setOriginalPost(JSON.parse(JSON.stringify(post)));
         // Show success message or notification
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to save changes');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to save changes');
     } finally {
       setSaving(false);
     }
   };
   
   // Update frontmatter
-  const handleFrontmatterChange = (frontmatter: any) => {
+  const handleFrontmatterChange = (frontmatter: Partial<BlogPost['frontmatter']>) => {
     if (!post) return;
     setPost({
       ...post,
@@ -167,8 +162,8 @@ export default function PostEditor() {
           images: updatedImages,
         });
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to replace image');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to replace image');
     }
   };
   
@@ -187,11 +182,11 @@ export default function PostEditor() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [post, originalPost]);
+  }, [hasUnsavedChanges]);
   
   // Handle router changes
   useEffect(() => {
-    const handleRouteChange = (url: string) => {
+    const handleRouteChange = () => {
       if (hasUnsavedChanges()) {
         const confirm = window.confirm('You have unsaved changes. Are you sure you want to leave?');
         if (!confirm) {
@@ -206,7 +201,7 @@ export default function PostEditor() {
     return () => {
       router.events.off('routeChangeStart', handleRouteChange);
     };
-  }, [router, post, originalPost]);
+  }, [router, hasUnsavedChanges]);
 
   return (
     <>
@@ -322,7 +317,7 @@ export default function PostEditor() {
           <div className="text-center py-10">
             <h2 className="text-2xl font-bold text-gray-800">Post not found</h2>
             <p className="text-gray-600 mt-2">
-              The post you're looking for doesn't exist or couldn't be loaded.
+              The post you&apos;re looking for doesn&apos;t exist or couldn&apos;t be loaded.
             </p>
             <button
               onClick={() => router.push('/')}

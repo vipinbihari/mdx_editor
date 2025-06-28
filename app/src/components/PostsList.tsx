@@ -47,8 +47,8 @@ const PostsList: React.FC<PostsListProps> = ({
         setPosts(posts.filter(post => post.frontmatter.slug !== postToDelete.frontmatter.slug));
         setTotalPosts(totalPosts - 1);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete post');
+    } catch (err) {
+      setError((err as Error).message || 'Failed to delete post');
     } finally {
       setIsDeleting(false);
       setShowDeleteConfirm(false);
@@ -78,8 +78,8 @@ const PostsList: React.FC<PostsListProps> = ({
           setPosts(data.posts || []);
           setTotalPosts(data.pagination?.totalPosts || 0);
         }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load posts');
+      } catch (err) {
+        setError((err as Error).message || 'Failed to load posts');
       } finally {
         setLoading(false);
       }
@@ -213,7 +213,7 @@ const PostsList: React.FC<PostsListProps> = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v10m2 4h-8m0 0l3-3m-3 3l3 3" />
           </svg>
           <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">No posts found</h3>
-          <p className="mt-1 text-gray-500 dark:text-gray-300">This repository doesn't have any MDX posts yet</p>
+          <p className="mt-1 text-gray-500 dark:text-gray-300">This repository doesn&apos;t have any MDX posts yet</p>
         </div>
       ) : (
         <>

@@ -52,8 +52,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         postsPerPage
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching posts:', error);
-    return res.status(500).json({ error: error.message || 'Failed to fetch posts' });
+    return res.status(500).json({ error: (error as Error).message || 'Failed to fetch posts' });
   }
 }
