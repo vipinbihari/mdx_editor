@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BlogPostFrontmatter } from '@/types';
+import { formatDateForDisplay, parseDateFromDisplay, isValidDateFormat } from '@/utils/dateUtils';
 
 interface MetadataEditorProps {
   frontmatter: BlogPostFrontmatter;
@@ -11,6 +12,14 @@ const MetadataEditor: React.FC<MetadataEditorProps> = ({
   onChange,
 }) => {
   const [newTag, setNewTag] = useState('');
+  const [dateInput, setDateInput] = useState(formatDateForDisplay(frontmatter.date));
+  const [dateError, setDateError] = useState<string | null>(null);
+  
+  // Update date input when frontmatter changes (e.g., when loading a different post)
+  useEffect(() => {
+    setDateInput(formatDateForDisplay(frontmatter.date));
+    setDateError(null);
+  }, [frontmatter.date]);
   
   // Handle basic input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -20,15 +29,27 @@ const MetadataEditor: React.FC<MetadataEditorProps> = ({
   
   // Handle date input change
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { value } = e.target;
+    setDateInput(value);
+    setDateError(null);
     
-    // Parse the date in user's timezone
-    // The format of value is YYYY-MM-DD from the date input
-    if (value) {
-      // Use the raw input date (YYYY-MM-DD) and append T00:00:00Z to create midnight UTC
-      // This prevents timezone offset issues
-      const isoDate = `${value}T00:00:00Z`;
-      onChange({ [name]: isoDate });
+    // Only update the frontmatter if the date is complete and valid
+    if (value.length === 10 && isValidDateFormat(value)) {
+      try {
+        const isoDate = parseDateFromDisplay(value);
+        onChange({ date: isoDate });
+      } catch {
+        setDateError('Invalid date format');
+      }
+    }
+  };
+  
+  // Handle date input blur (when user finishes editing)
+  const handleDateBlur = () => {
+    if (dateInput && !isValidDateFormat(dateInput)) {
+      setDateError('Please use DD/MM/YYYY format');
+      // Reset to the original valid date
+      setDateInput(formatDateForDisplay(frontmatter.date));
     }
   };
   
@@ -118,16 +139,31 @@ const MetadataEditor: React.FC<MetadataEditorProps> = ({
         {/* Date */}
         <div>
           <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Publication Date
+            Publication Date (DD/MM/YYYY)
           </label>
           <input
-            type="date"
+            type="text"
             id="date"
             name="date"
-            value={frontmatter.date.split('T')[0]}
+            value={dateInput}
             onChange={handleDateChange}
-            className="input w-full border border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-md px-4 py-2 transition-all duration-200 shadow-sm focus:shadow-md focus:border-primary-500 focus:dark:border-primary-400 focus:ring-2 focus:ring-primary-500/20 focus:dark:ring-primary-400/20 focus:outline-none"
+            onBlur={handleDateBlur}
+            placeholder="DD/MM/YYYY"
+            className={`input w-full border rounded-md px-4 py-2 transition-all duration-200 shadow-sm focus:shadow-md focus:outline-none ${
+              dateError 
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20 dark:border-red-400 dark:focus:border-red-400 dark:focus:ring-red-400/20' 
+                : 'border-gray-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:border-primary-500 focus:dark:border-primary-400 focus:ring-2 focus:ring-primary-500/20 focus:dark:ring-primary-400/20'
+            }`}
           />
+          {dateError ? (
+            <p className="mt-1 text-xs text-red-500 dark:text-red-400">
+              {dateError}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+              Format: DD/MM/YYYY (e.g., 25/12/2023)
+            </p>
+          )}
         </div>
         
         {/* Author */}

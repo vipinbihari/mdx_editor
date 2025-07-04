@@ -1150,6 +1150,71 @@ export async function deleteImage(repoPath: string, imagePath: string): Promise<
 }
 ```
 
+### Image Stamping
+
+The application provides two types of image stamping functionality using the Sharp library:
+
+#### Logo Stamping (`/api/images/stamp`)
+
+Overlays repository logos onto images with the following features:
+- Automatic logo resizing to 128x128 pixels
+- Transparency preservation with proper alpha blending
+- Bottom-right positioning with responsive margins
+- Format-aware processing (PNG, JPEG, WebP)
+- Quality optimization to balance file size and visual quality
+
+```typescript
+// Key implementation details
+const resizedLogo = await sharp(logoPath)
+  .resize(128, 128, {
+    fit: 'contain',
+    background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+  })
+  .png({ quality: 100, compressionLevel: 3, adaptiveFiltering: true })
+  .toBuffer();
+
+// Composite with proper alpha blending
+pipeline = pipeline.composite([{
+  input: resizedLogo,
+  top: height - 128 - margin,
+  left: width - 128 - margin,
+  blend: 'over' // Proper transparency handling
+}]);
+```
+
+#### Date Stamping (`/api/images/stampDate`)
+
+Adds professional date overlays with:
+- Responsive font sizing (32-48px based on image dimensions)
+- Color-coded components (day: gold, month: blue, year: green, separators: white)
+- Perfect centering with balanced spacing
+- Semi-transparent background rectangle
+- SVG-based overlay for crisp rendering
+
+```typescript
+// Responsive calculations
+const fontSize = Math.max(32, Math.min(48, width * 0.04));
+const componentSpacing = fontSize * 0.8;
+const estimatedWidth = fontSize * 8.5;
+
+// Centered positioning
+const centerX = rectX + (rectWidth / 2);
+const positions = {
+  day: centerX - componentSpacing * 2.5,
+  firstSlash: centerX - componentSpacing * 1.5,
+  month: centerX - componentSpacing * 0.5,
+  secondSlash: centerX + componentSpacing * 0.5,
+  year: centerX + componentSpacing * 2.2
+};
+```
+
+**Technical Features:**
+- **Transparency Preservation**: Uses `blend: 'over'` for proper alpha compositing
+- **Quality Optimization**: Balanced compression (PNG: level 3, JPEG: 95%, WebP: near-lossless)
+- **Format Detection**: Automatically preserves original image format
+- **Responsive Design**: All elements scale proportionally with image size
+- **Memory Efficiency**: Sequential read and optimized Sharp pipelines
+
 ### Image Path Handling
 
 The application maintains a clear distinction between web paths and file system paths:

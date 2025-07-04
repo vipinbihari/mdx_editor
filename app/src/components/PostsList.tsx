@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BlogPost } from '@/types';
 import ConfirmDialog from './ConfirmDialog';
+import { formatDateForDisplay } from '@/utils/dateUtils';
+
+// Define the structure of post data returned from the optimized API
+interface PostCardData {
+  slug: string;
+  title: string;
+  date: string;
+  excerpt: string;
+  tags: string[];
+  category: string;
+  author: string;
+  featured: boolean;
+  heroImage: string | null;
+}
 
 interface PostsListProps {
   repoName: string;
@@ -17,12 +30,12 @@ const PostsList: React.FC<PostsListProps> = ({
   postsPerPage,
   onPageChange,
 }) => {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [posts, setPosts] = useState<PostCardData[]>([]);
   const [totalPosts, setTotalPosts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
+  const [postToDelete, setPostToDelete] = useState<PostCardData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
   // Calculate total pages
@@ -32,32 +45,31 @@ const PostsList: React.FC<PostsListProps> = ({
   const handleDeletePost = async () => {
     if (!postToDelete) return;
     
+    setIsDeleting(true);
     try {
-      setIsDeleting(true);
-      const response = await fetch(`/api/posts/${repoName}/${postToDelete.frontmatter.slug}`, {
+      const response = await fetch(`/api/posts/${repoName}/${postToDelete.slug}`, {
         method: 'DELETE',
       });
       
-      const data = await response.json();
-      
-      if (data.error) {
-        setError(data.error);
+      if (response.ok) {
+        // Remove the post from the list
+        setPosts(posts.filter(p => p.slug !== postToDelete.slug));
+        setTotalPosts(prev => prev - 1);
+        setPostToDelete(null);
+        setShowDeleteConfirm(false);
       } else {
-        // Remove the deleted post from the list
-        setPosts(posts.filter(post => post.frontmatter.slug !== postToDelete.frontmatter.slug));
-        setTotalPosts(totalPosts - 1);
+        const error = await response.json();
+        setError(error.error || 'Failed to delete post');
       }
     } catch (err) {
       setError((err as Error).message || 'Failed to delete post');
     } finally {
       setIsDeleting(false);
-      setShowDeleteConfirm(false);
-      setPostToDelete(null);
     }
   };
   
   // Show delete confirmation
-  const confirmDeletePost = (e: React.MouseEvent, post: BlogPost) => {
+  const confirmDeletePost = (e: React.MouseEvent, post: PostCardData) => {
     e.preventDefault();
     e.stopPropagation();
     setPostToDelete(post);
@@ -90,21 +102,6 @@ const PostsList: React.FC<PostsListProps> = ({
     }
   }, [repoName, currentPage, postsPerPage]);
 
-  // Format date for display - preserve the exact date as in the frontmatter
-  const formatDate = (dateString: string) => {
-    // Parse the ISO date string
-    const date = new Date(dateString);
-    
-    // Extract year, month and day directly from the date string to avoid timezone issues
-    // ISO format: YYYY-MM-DDTHH:mm:ss.sssZ
-    const isoDate = date.toISOString();
-    const [datePart] = isoDate.split('T');
-    const [year, month, day] = datePart.split('-');
-    
-    // Format as DD/MM/YYYY (British format)
-    return `${day}/${month}/${year}`;
-  };
-  
   // Generate pagination links
   const renderPagination = () => {
     const pages = [];
@@ -219,7 +216,7 @@ const PostsList: React.FC<PostsListProps> = ({
         <>
           <div className="space-y-4">
             {posts.map((post) => (
-              <div key={post.frontmatter.slug} className="relative">
+              <div key={post.slug} className="relative">
                 {/* Delete button */}
                 <button 
                   onClick={(e) => confirmDeletePost(e, post)}
@@ -232,18 +229,18 @@ const PostsList: React.FC<PostsListProps> = ({
                 </button>
                   
                 <Link
-                  href={`/editor/${repoName}/${post.frontmatter.slug}?page=${currentPage}`}
+                  href={`/editor/${repoName}/${post.slug}?page=${currentPage}`}
                   className="block"
                 >
                   <div className="flex-grow bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200">
                   <div className="flex flex-col md:flex-row">
                     {/* Hero Image Thumbnail */}
                     <div className="md:w-1/4 relative h-48 md:h-auto">
-                      {post.frontmatter.heroImage ? (
+                      {post.heroImage ? (
                         <div className="relative w-full h-full">
                           <Image
-                            src={`/api/image?repoName=${repoName}&imagePath=${post.frontmatter.heroImage}&t=${Date.now()}`}
-                            alt={post.frontmatter.title}
+                            src={`/api/image?repoName=${repoName}&imagePath=${post.heroImage}&t=${Date.now()}`}
+                            alt={post.title}
                             fill
                             className="object-cover rounded-t-lg md:rounded-l-lg md:rounded-t-none"
                             priority={currentPage === 1}
@@ -261,7 +258,7 @@ const PostsList: React.FC<PostsListProps> = ({
                     {/* Post Info */}
                     <div className="p-4 md:p-6 flex-1">
                       <div className="flex flex-wrap gap-2 mb-2">
-                        {post.frontmatter.tags?.map((tag) => (
+                        {post.tags?.map((tag) => (
                           <span key={tag} className="inline-block px-2 py-1 text-xs font-medium text-primary-700 dark:text-primary-300 bg-primary-100 dark:bg-primary-900/30 rounded">
                             {tag}
                           </span>
@@ -269,18 +266,18 @@ const PostsList: React.FC<PostsListProps> = ({
                       </div>
                       
                       <h3 className="text-lg font-semibold text-gray-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400">
-                        {post.frontmatter.title}
+                        {post.title}
                       </h3>
                       
                       <div className="text-sm text-gray-500 dark:text-gray-300 mb-2 flex items-center gap-2">
-                        {post.frontmatter.excerpt}
+                        {post.excerpt}
                       </div>
                       
                       <div className="flex items-center justify-between mt-4">
                         <div className="text-sm text-gray-500 dark:text-gray-300">
-                          <span className="font-medium">{post.frontmatter.author}</span>
+                          <span className="font-medium">{post.author}</span>
                           <span className="mx-1">&middot;</span>
-                          <span>{formatDate(post.frontmatter.date)}</span>
+                          <span>{formatDateForDisplay(post.date)}</span>
                         </div>
                         
                         <span className="text-primary-600 dark:text-primary-400 font-medium text-sm">
@@ -299,7 +296,7 @@ const PostsList: React.FC<PostsListProps> = ({
           <ConfirmDialog
             isOpen={showDeleteConfirm}
             title="Delete Post"
-            message={`Are you sure you want to delete "${postToDelete?.frontmatter.title}"? This will permanently remove the post and all its images. This action cannot be undone.`}
+            message={`Are you sure you want to delete "${postToDelete?.title}"? This will permanently remove the post and all its images. This action cannot be undone.`}
             confirmLabel={isDeleting ? 'Deleting...' : 'Delete'}
             cancelLabel="Cancel"
             confirmVariant="danger"

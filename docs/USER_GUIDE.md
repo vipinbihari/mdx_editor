@@ -238,6 +238,47 @@ You can replace images in two ways:
 4. Click the "Import" button
 5. The system will fetch the image from the URL, upload it, and replace the existing image
 
+### Stamping Images with Logos
+
+The application allows you to overlay repository logos onto your images:
+
+1. Go to the Images tab
+2. Click "Stamp Image" on the image you want to add a logo to
+3. A stamping interface will appear below the selected image
+4. From the dropdown, select the repository whose logo you want to use (each repo should have a logo.png in its root)
+5. Click the "Stamp Now" button
+6. The system will overlay the selected repository's logo onto the bottom-right corner of your image
+7. The original image will be replaced with the stamped version
+
+**Note:** For best results, repository logos should have a transparent background. Logos will be resized to 128x128 pixels and placed at the bottom-right with proper padding.
+
+### Stamping Images with Dates
+
+The application allows you to overlay date stamps onto your images with professional styling:
+
+1. Go to the Images tab
+2. Click "Stamp Date" on the image you want to add a date to
+3. A date stamping interface will appear below the selected image
+4. Enter your desired date in DD/MM/YYYY format (e.g., "07/06/2025")
+5. The date input field is pre-populated with today's date for convenience
+6. Click the "Stamp Date" button
+7. The system will overlay the date onto the top-right corner of your image with a semi-transparent background
+8. The original image will be replaced with the date-stamped version
+
+**Date Stamp Features:**
+- **Responsive Design**: Font size and spacing automatically adjust based on image dimensions (32-48px range)
+- **Color-Coded Components**: 
+  - Day: Gold/amber color
+  - Month: Light blue
+  - Year: Light green
+  - Separators ("/"): White
+- **Professional Styling**: Semi-transparent background with text stroke for visibility
+- **Perfect Centering**: Date components are evenly spaced and centered within the background rectangle
+- **Format Preservation**: Maintains original image format and transparency (PNG, JPEG, WebP)
+- **Quality Optimization**: Balanced compression to maintain visual quality while controlling file size
+
+**Note:** Date stamps are positioned in the top-right corner with responsive margins. The format is always DD / MM / YYYY with proper spacing between components.
+
 ### Image Best Practices
 
 - Use optimized images (JPEG, PNG, or WebP)

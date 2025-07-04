@@ -2,6 +2,53 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import path from 'path';
 import fs from 'fs-extra';
 import { getAllPosts } from '@/utils/mdxOperations';
+import { BlogPost } from '@/types';
+
+// Define interface for the lightweight post data needed for listing
+interface PostCardData {
+  slug: string;
+  title: string;
+  date: string;
+  excerpt: string;
+  tags: string[];
+  category: string;
+  author: string;
+  featured: boolean;
+  heroImage: string | null;
+}
+
+/**
+ * Extract only the data needed for post cards from full blog posts
+ */
+function extractPostCardData(posts: BlogPost[]): PostCardData[] {
+  return posts.map(post => {
+    // Extract only the necessary fields from frontmatter
+    const {
+      slug,
+      title,
+      date,
+      excerpt,
+      tags,
+      category,
+      author,
+      featured = false,
+      heroImage
+    } = post.frontmatter;
+    
+    // Return the lightweight version
+    return {
+      slug,
+      title,
+      date,
+      excerpt,
+      tags,
+      category,
+      author,
+      featured,
+      heroImage: heroImage || null
+    };
+  });
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -40,11 +87,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const startIndex = (currentPage - 1) * postsPerPage;
     const endIndex = startIndex + postsPerPage;
     
-    // Get posts for current page
+    // Get posts for current page and convert to lightweight format
     const paginatedPosts = allPosts.slice(startIndex, endIndex);
+    const postCardData = extractPostCardData(paginatedPosts);
     
     return res.status(200).json({
-      posts: paginatedPosts,
+      posts: postCardData,
       pagination: {
         currentPage,
         totalPages: Math.ceil(allPosts.length / postsPerPage),

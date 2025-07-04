@@ -62,6 +62,7 @@ MDX files contain frontmatter with fields such as:
 - Visual feedback with zoom cursor indicator
 - Hero image prompt generation for AI image tools
 - In-blog image prompt generation with automated placeholder insertion
+- Stamp images with repository logos (overlay repository logo.png onto images at the bottom-right corner)
 
 ### 5. Metadata Editing
 - Edit all frontmatter fields

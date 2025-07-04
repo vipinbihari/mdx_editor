@@ -1,6 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { BlogPost } from '@/types';
+import { formatDateForDisplay } from '@/utils/dateUtils';
 
 interface PreviewModalProps {
   post: BlogPost;
@@ -9,16 +10,6 @@ interface PreviewModalProps {
 }
 
 const PreviewModal: React.FC<PreviewModalProps> = ({ post, repoName, onClose }) => {
-  // Function to format date in a readable format
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  };
-
   // Function to render markdown content (simplified version)
   const renderContent = (content: string) => {
     // Convert markdown to HTML (very simplified)
@@ -83,7 +74,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({ post, repoName, onClose }) 
                 By <span className="font-medium">{post.frontmatter.author}</span>
               </span>
               <span className="mr-4">
-                {formatDate(post.frontmatter.date)}
+                {formatDateForDisplay(post.frontmatter.date)}
               </span>
               <span>
                 In <span className="font-medium">{post.frontmatter.category}</span>

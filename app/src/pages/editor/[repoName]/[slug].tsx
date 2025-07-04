@@ -24,6 +24,29 @@ export default function PostEditor() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Handle tab changes and update URL fragment
+  const handleTabChange = (tab: 'metadata' | 'content' | 'images' | 'heroImagePrompt' | 'inBlogImagePrompt') => {
+    setActiveTab(tab);
+    // Update URL fragment without triggering navigation
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(
+        {}, 
+        '', 
+        `${window.location.pathname}${window.location.search}#${tab}`
+      );
+    }
+  };
+  
+  // Check URL fragment on initial load and when navigating
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const fragment = window.location.hash.replace('#', '');
+      if (['metadata', 'content', 'images', 'heroImagePrompt', 'inBlogImagePrompt'].includes(fragment)) {
+        setActiveTab(fragment as 'metadata' | 'content' | 'images' | 'heroImagePrompt' | 'inBlogImagePrompt');
+      }
+    }
+  }, []);
+  
   // Fetch post data
   useEffect(() => {
     const fetchPost = async () => {
@@ -268,7 +291,7 @@ export default function PostEditor() {
             
             <EditorToolbar
               activeTab={activeTab}
-              onTabChange={setActiveTab}
+              onTabChange={handleTabChange}
               isPreviewMode={isPreviewMode}
               onTogglePreview={() => setIsPreviewMode(!isPreviewMode)}
             />
@@ -292,11 +315,12 @@ export default function PostEditor() {
                 )
               )}
               
-              {activeTab === 'images' && (
-                <ImageManager
-                  images={post.images}
-                  repoName={String(repoName)}
+              {activeTab === 'images' && post && (
+                <ImageManager 
+                  images={post.images} 
+                  repoName={repoName as string}
                   onImageReplace={handleImageReplace}
+                  post={post}
                 />
               )}
               

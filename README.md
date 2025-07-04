@@ -9,7 +9,7 @@ A modern, modular web-based MDX blog content manager using Next.js, TypeScript, 
 - **Post listing**: View blog posts with pagination, thumbnails, and metadata with correct timezone handling
 - **Post management**: Create, edit, and delete posts with confirmation dialogs and proper feedback
 - **MDX editing**: Edit frontmatter metadata and MDX content with direct markdown editing and preview
-- **Image management**: Drag-and-drop image replacement for hero and in-blog images, with image zoom preview
+- **Image management**: Drag-and-drop image replacement for hero and in-blog images, with image zoom preview, logo stamping, and date stamping with customizable formats
 - **Image prompt generation**: Generate prompts for both hero images and in-blog images for AI image generation tools
 - **Persistent navigation**: Seamless navigation between post list and editor with preserved state
 - **Modern UI**: Clean, responsive interface built with TailwindCSS featuring:
@@ -69,7 +69,9 @@ heroImage: /images/uploads/post-slug/hero.jpg
 
 ### Prerequisites
 
-- Node.js 14+ and npm/yarn
+- Node.js 18+ and npm/yarn (Node 18+ is required for best compatibility)
+- Git (with SSH keys for private repo access)
+- Linux server or local machine with persistent storage (for production)
 - Git with SSH keys configured for repository access
 
 ### Installation
@@ -87,40 +89,76 @@ npm install
 yarn install
 ```
 
-3. Create a `.env.local` file with the following (optional):
+3. Create a `.env.local` file (required for production):
 ```
-REPOS_DIR=/path/to/repos
+REPOS_DIR=/absolute/path/to/repos
 ```
+- This is where your cloned blog repositories will be stored.
+- Example: `/var/www/mdx-repos` on a server, or `/Users/yourname/mdx-repos` locally.
 
-4. Start the development server:
+4. Start the development server (for local testing):
 ```bash
 npm run dev
 # or
 yarn dev
 ```
 
+5. Build and run in production:
+```bash
+npm run build
+npm start
+```
+- Use a process manager like `pm2` for reliability in production.
+- The app will run at `http://localhost:3000` by default.
+
 5. Open [http://localhost:3000](http://localhost:3000) to access the application
 
-## Usage Guide
+## Usage Guide (UI)
 
-### Repository Management
+### 1. Repository Management
+- **Add New Repository**: Enter the SSH URL (e.g., `git@github.com:user/repo.git`) to clone and manage your blog repo.
+- **Select Repository**: Use the dropdown (powered by `RepoSelector`) to switch between repos.
+- **Pull Latest**: Sync with remote changes.
 
-1. **Clone a repository**: Enter the SSH URL of your git repository
-2. **Select a repository**: Choose from the list of cloned repositories
-3. **Pull latest changes**: Sync with remote repository
+### 2. Post Management
+- **Browse**: Paginated list of posts with images and metadata.
+- **Edit**: Click to open in the MDX editor.
+- **Delete**: Remove posts (with confirmation).
+- **Metadata**: Edit frontmatter (title, date, tags, etc).
+- **Content**: Edit markdown/MDX directly, with preview toggle.
+- **Images**: Drag-and-drop to replace hero or in-blog images.
+- **Save**: Save changes locally.
+- **Commit & Push**: Use the Commit button to push all changes to your remote repo (with custom commit message).
 
-### Post Management
+### 3. Image Prompt Generation
+- Generate AI prompts for hero/in-blog images from the editor UI.
 
-1. **Browse posts**: View paginated list of blog posts with thumbnails and correct date formatting
-2. **Edit a post**: Click on a post to open the editor
-3. **Delete a post**: Remove a blog post and its associated images with a confirmation dialog
-4. **Edit metadata**: Update frontmatter fields like title, date, tags
-5. **Edit content**: Modify MDX content with direct markdown editing and toggle preview option
-6. **Replace images**: Use drag-and-drop to replace hero or content images
-7. **View images**: Click on any image to see an enlarged preview
-8. **Generate image prompts**: Generate prompts for hero images and in-blog images for AI image generation tools
-9. **Save changes**: Save modifications to the local repository
-10. **Commit changes**: Push all changes with a custom commit message
+### 4. Troubleshooting
+- **Build/Lint Fails**: Run `npm run lint` and fix errors as reported.
+- **SSH Issues**: Make sure your server has SSH keys configured for your git host.
+- **Permissions**: Ensure `REPOS_DIR` is writable by the app user.
+- **File Not Found**: Check that your repo matches the expected structure (`/posts`, `/uploads`).
+
+### 5. Production Deployment
+- Use a Linux VPS or server for best results.
+- Set `REPOS_DIR` to a persistent, writable location.
+- Use `npm run build` then `npm start` (optionally with `pm2`).
+- Open your server's IP/domain in a browser to access the app.
+
+## Component Reference
+
+### RepoSelector
+- Located at: `src/components/RepoSelector.tsx`
+- Props:
+  - `repositories: Repository[]` - List of available repos
+  - `currentRepo: Repository | null` - Currently selected repo
+  - `onSelectRepo: (repo: Repository | null) => void` - Callback for repo selection
+  - `loading: boolean` - Loading state
+- Features:
+  - Dropdown to select repo
+  - Add new repo (clone by SSH URL)
+  - Pull latest changes
+  - Delete repo (with confirmation)
 
 ## API Endpoints
 
@@ -157,6 +195,12 @@ The codebase is designed to be modular and extensible:
 - Custom MDX component previews
 - Batch operations for posts
 - Enhanced search capabilities
+
+## Build & Lint Status
+
+- **Build:** Clean (`npm run build` passes)
+- **Lint:** Clean (`npm run lint` passes)
+- **TypeScript:** No `any` or unused variable errors
 
 ## License
 

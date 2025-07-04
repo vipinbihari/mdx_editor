@@ -1,31 +1,75 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
-import { BlogImage } from '@/types';
+import { BlogImage, BlogPost } from '@/types';
 import ImageZoomModal from './ImageZoomModal';
+import { formatDateForDisplay } from '@/utils/dateUtils';
 
 interface ImageManagerProps {
   images: BlogImage[];
   repoName: string;
   onImageReplace: (oldImage: BlogImage, newImageFile: File) => void;
+  post?: BlogPost | null;
+}
+
+interface Repository {
+  name: string;
+  path: string;
+  url?: string;
+  isCloned?: boolean;
+  isCurrent?: boolean;
 }
 
 const ImageManager: React.FC<ImageManagerProps> = ({
   images,
   repoName,
   onImageReplace,
+  post,
 }) => {
   const [activeImage, setActiveImage] = useState<BlogImage | null>(null);
+  const [stampImage, setStampImage] = useState<BlogImage | null>(null);
+  const [stampDateImage, setStampDateImage] = useState<BlogImage | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string>('');
   const [isLoadingUrl, setIsLoadingUrl] = useState<boolean>(false);
   const [zoomModalOpen, setZoomModalOpen] = useState<boolean>(false);
   const [zoomedImageSrc, setZoomedImageSrc] = useState<string>('');
   const [zoomedImageAlt, setZoomedImageAlt] = useState<string>('');
+  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [selectedLogoRepo, setSelectedLogoRepo] = useState<string>('');
+  const [isStamping, setIsStamping] = useState<boolean>(false);
+  const [isDateStamping, setIsDateStamping] = useState<boolean>(false);
+  const [dateToStamp, setDateToStamp] = useState<string>('');
   const imageUrlInputRef = useRef<HTMLInputElement>(null);
   
   // Use a consistent timestamp for the entire component lifecycle to avoid unnecessary refetching
   const cacheBuster = useRef(Date.now()).current;
+  
+  // Fetch repositories for logo selection
+  useEffect(() => {
+    const fetchRepositories = async () => {
+      try {
+        const response = await fetch('/api/repositories');
+        const data = await response.json();
+        if (data.repositories) {
+          setRepositories(data.repositories);
+          // Set the selected repository to match the current repository
+          setSelectedLogoRepo(repoName); 
+        }
+      } catch (error) {
+        console.error('Error fetching repositories:', error);
+        setUploadError('Failed to load repositories for logo selection');
+      }
+    };
+    
+    fetchRepositories();
+    
+    // Set default date from post frontmatter if available
+    if (post?.frontmatter?.date) {
+      // Use the shared utility function for consistent date formatting
+      setDateToStamp(formatDateForDisplay(post.frontmatter.date));
+    }
+  }, [repoName, post]);
 
   // Filter images into hero and content images
   const heroImage = images.find((img) => img.inHero);
@@ -50,6 +94,110 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     }
   });
 
+  // Handle image stamping with logo
+  const handleStampImage = async () => {
+    if (!stampImage || !selectedLogoRepo) {
+      setUploadError('Please select an image and a logo repository');
+      return;
+    }
+    
+    setIsStamping(true);
+    setUploadError(null);
+    
+    try {
+      const response = await fetch('/api/images/stamp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          repoName,
+          selectedImagePath: stampImage.path,
+          selectedLogoRepo,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to stamp image');
+      }
+      
+      // Reset UI state
+      setStampImage(null);
+      
+      // Create a new cache buster to force reload only this specific image
+      const newCacheBuster = Date.now();
+      
+      // Find and update the image element to refresh it
+      const imageElement = document.querySelector(`img[src^="/api/image?repoName=${repoName}&imagePath=${stampImage.path}"]`);
+      if (imageElement) {
+        // Update the src with a new timestamp to force reload
+        const currentSrc = imageElement.getAttribute('src');
+        const newSrc = currentSrc?.split('&t=')[0] + `&t=${newCacheBuster}`;
+        imageElement.setAttribute('src', newSrc);
+      }
+      
+    } catch (error) {
+      console.error('Error stamping image:', error);
+      setUploadError(`Failed to stamp image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsStamping(false);
+    }
+  };
+  
+  // Handle image stamping with date
+  const handleStampDate = async () => {
+    if (!stampDateImage || !dateToStamp) {
+      setUploadError('Please select an image and provide a date');
+      return;
+    }
+    
+    setIsDateStamping(true);
+    setUploadError(null);
+    
+    try {
+      const response = await fetch('/api/images/stampDate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          repoName,
+          selectedImagePath: stampDateImage.path,
+          dateText: dateToStamp,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to stamp date on image');
+      }
+      
+      // Reset UI state
+      setStampDateImage(null);
+      
+      // Create a new cache buster to force reload only this specific image
+      const newCacheBuster = Date.now();
+      
+      // Find and update the image element to refresh it
+      const imageElement = document.querySelector(`img[src^="/api/image?repoName=${repoName}&imagePath=${stampDateImage.path}"]`);
+      if (imageElement) {
+        // Update the src with a new timestamp to force reload
+        const currentSrc = imageElement.getAttribute('src');
+        const newSrc = currentSrc?.split('&t=')[0] + `&t=${newCacheBuster}`;
+        imageElement.setAttribute('src', newSrc);
+      }
+      
+    } catch (error) {
+      console.error('Error stamping date on image:', error);
+      setUploadError(`Failed to stamp date on image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDateStamping(false);
+    }
+  };
+  
   // Handle URL image replacement
   const handleUrlImageReplace = async () => {
     if (!activeImage || !imageUrl) return;
@@ -93,6 +241,84 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     } finally {
       setIsLoadingUrl(false);
     }
+  };
+  
+  // Helper to render image stamping UI
+  const renderStampingInterface = (image: BlogImage) => {
+    return (
+      <div className="mt-2 mb-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
+        <h3 className="font-medium text-primary-800 dark:text-primary-300 mb-3">
+          Stamp Image with Logo: {image.path.split('/').pop()}
+        </h3>
+        
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Select Logo from Repository:
+          </label>
+          <select
+            value={selectedLogoRepo}
+            onChange={(e) => setSelectedLogoRepo(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-600"
+          >
+            {repositories.map((repo) => (
+              <option key={repo.name} value={repo.name}>
+                {repo.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+            Each repository should have a logo.png at its root
+          </p>
+        </div>
+        
+        <div className="flex justify-end">
+          <button
+            onClick={handleStampImage}
+            disabled={isStamping || !selectedLogoRepo}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-primary-700 dark:hover:bg-primary-600 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isStamping ? 'Stamping...' : 'Stamp Now'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+  
+  // Helper to render date stamping UI
+  const renderDateStampingInterface = (image: BlogImage) => {
+    return (
+      <div className="mt-2 mb-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
+        <h3 className="font-medium text-primary-800 dark:text-primary-300 mb-3">
+          Stamp Date on Image: {image.path.split('/').pop()}
+        </h3>
+        
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Date to Stamp (DD/MM/YYYY):
+          </label>
+          <input
+            type="text"
+            value={dateToStamp}
+            onChange={(e) => setDateToStamp(e.target.value)}
+            placeholder="DD/MM/YYYY"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-600"
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
+            Date will be stamped in the top right corner of the image
+          </p>
+        </div>
+        
+        <div className="flex justify-end">
+          <button
+            onClick={handleStampDate}
+            disabled={isDateStamping || !dateToStamp}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-primary-700 dark:hover:bg-primary-600 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isDateStamping ? 'Stamping...' : 'Stamp Now'}
+          </button>
+        </div>
+      </div>
+    );
   };
   
   // Helper to render image replacement UI for a specific image
@@ -211,17 +437,46 @@ const ImageManager: React.FC<ImageManagerProps> = ({
           </p>
           
           <div className="mt-3 flex justify-between">
-            <button
-              onClick={() => {
-                // Toggle active state for this image
-                setActiveImage(isSelected ? null : image);
-                setUploadError(null);
-                setImageUrl('');
-              }}
-              className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-            >
-              {isSelected ? 'Cancel' : 'Replace Image'}
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  // Toggle active state for this image
+                  setActiveImage(isSelected ? null : image);
+                  setStampImage(null);
+                  setUploadError(null);
+                  setImageUrl('');
+                }}
+                className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+              >
+                {isSelected ? 'Cancel' : 'Replace Image'}
+              </button>
+              
+              <button
+                onClick={() => {
+                  // Toggle stamp state for this image
+                  setStampImage(stampImage?.path === image.path ? null : image);
+                  setStampDateImage(null);
+                  setActiveImage(null);
+                  setUploadError(null);
+                }}
+                className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+              >
+                {stampImage?.path === image.path ? 'Cancel' : 'Stamp Image'}
+              </button>
+              
+              <button
+                onClick={() => {
+                  // Toggle date stamp state for this image
+                  setStampDateImage(stampDateImage?.path === image.path ? null : image);
+                  setStampImage(null);
+                  setActiveImage(null);
+                  setUploadError(null);
+                }}
+                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+              >
+                {stampDateImage?.path === image.path ? 'Cancel' : 'Stamp Date'}
+              </button>
+            </div>
             
             <span className="text-xs text-gray-500 dark:text-gray-300">
               {/* We could add image size info here if available */}
@@ -231,6 +486,12 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         
         {/* Render replacement UI directly below this image if it's selected */}
         {isSelected && renderImageReplacement(image)}
+        
+        {/* Render stamping UI directly below this image if it's selected for stamping */}
+        {stampImage?.path === image.path && renderStampingInterface(image)}
+        
+        {/* Render date stamping UI if this image is selected for date stamping */}
+        {stampDateImage?.path === image.path && renderDateStampingInterface(image)}
       </div>
     );
   };
