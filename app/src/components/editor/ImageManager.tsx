@@ -206,11 +206,18 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     setUploadError(null);
     
     try {
-      // Fetch the image from the provided URL
-      const response = await fetch(imageUrl);
+      // Use backend proxy to fetch the image (bypasses CORS)
+      const response = await fetch('/api/images/fetch-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageUrl }),
+      });
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Failed to fetch image: ${response.status} ${response.statusText}`);
       }
       
       // Convert the response to a blob and then to a file
