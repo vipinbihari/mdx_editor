@@ -307,10 +307,30 @@ interface PostsListProps {
 ```
 Paginated list of blog posts with:
 - Hero image thumbnails with fallbacks
-- Post metadata (title, date, excerpt)
+- Post metadata (title, date, excerpt, category, featured status)
+- Category display alongside author and date
+- Featured post indicator (yellow star icon for featured posts)
 - Pagination controls
 - Post deletion functionality with confirmation dialog
 - Loading skeletons
+- Error handling
+- Click handler to navigate to editor
+- Mobile-optimized responsive design with overflow prevention
+- Responsive flex layout that adapts to screen size
+
+### PostsList Component
+
+The `PostsList.tsx` component displays all posts in a selected repository with pagination support.
+
+**Key Features:**
+- Paginated post listing with configurable items per page
+- Post card display with hero image, title, excerpt, metadata, category, and featured status
+- Responsive grid layout that adapts to screen size
+- Delete post functionality with confirmation dialog
+- Featured post indicator (yellow star icon)
+- Category display alongside author and date
+- Mobile-optimized responsive design
+- Navigation to post editor
 - Error handling
 - Click handler to navigate to editor
 

@@ -83,6 +83,7 @@ The home page displays all your cloned blog repositories. Each repository card s
 - Repository name
 - Last commit information
 - Status (up to date, modified, etc.)
+- Mobile-optimized responsive design with proper text truncation and button sizing
 
 ### Cloning a New Repository
 
@@ -129,16 +130,22 @@ The application uses modern UI design patterns for an improved user experience:
 ### Viewing Posts
 
 1. Select a repository from the dashboard
-2. The posts list will display with the following information:
-   - Hero image thumbnail
-   - Title
-   - Publication date
-   - Excerpt
-   - Tags and category
-   - Author
-   - Delete button (trash icon) to remove the post
+2. The posts list will display with the following information for each post:
+   - **Hero Image Thumbnail**: Visual preview of the post's hero image
+   - **Title**: The post title as defined in frontmatter
+   - **Excerpt**: Brief description from the frontmatter
+   - **Tags**: Color-coded tags for easy categorization
+   - **Author**: Post author name from frontmatter
+   - **Date**: Publication date in readable format
+   - **Category**: Post category if specified in frontmatter
+   - **Featured Status**: Yellow star icon indicates featured posts
+   - **Delete Button**: Red trash icon for post deletion
 
-### Post Pagination
+#### Post Card Layout
+- **Desktop**: Horizontal layout with image on the left and content on the right
+- **Mobile**: Responsive vertical layout optimized for mobile devices
+- **Interactive Elements**: Hover effects and smooth transitions
+- **Mobile Experience**: Fully responsive with proper overflow prevention and touch-friendly buttons
 
 - Posts are displayed 10 per page
 - Use the pagination controls at the bottom of the list to navigate between pages
@@ -150,12 +157,20 @@ The application uses modern UI design patterns for an improved user experience:
 To delete a blog post:
 
 1. Find the post you want to delete in the posts list
-2. Click the delete button (trash icon) on the post card
+2. Click the delete button (red trash icon) on the post card
 3. A confirmation dialog will appear asking you to confirm the deletion
 4. Click "Delete" to permanently remove the post and its associated images
 5. Click "Cancel" if you changed your mind
 
 > **Note:** Post deletion permanently removes both the MDX file and the associated images folder. This action cannot be undone unless you have a backup or the changes haven't been committed yet.
+
+### Featured Posts
+
+Posts can be marked as featured, indicated by a yellow star icon in the top-right corner of the post card. Featured posts are highlighted for special attention.
+
+### Categories
+
+Posts can be organized by categories, which are displayed alongside the author and date information. Categories help organize and filter content effectively.
 
 ### Searching and Filtering Posts
 

@@ -6,7 +6,7 @@ A modern, modular web-based MDX blog content manager using Next.js, TypeScript, 
 
 - **Multi-repository support**: Manage MDX blog content across multiple git repositories with ability to add, select, and delete repositories
 - **Git integration**: Clone, pull, commit, and push changes via SSH with visual loading indicators
-- **Post listing**: View blog posts with pagination, thumbnails, and metadata with correct timezone handling
+- **Post listing**: View blog posts with pagination, thumbnails, metadata, categories, and featured status indicators with correct timezone handling
 - **Post management**: Create, edit, and delete posts with confirmation dialogs and proper feedback
 - **MDX editing**: Edit frontmatter metadata and MDX content with direct markdown editing and preview
 - **Image management**: Drag-and-drop image replacement for hero and in-blog images, with image zoom preview, logo stamping, and date stamping with customizable formats
@@ -17,6 +17,7 @@ A modern, modular web-based MDX blog content manager using Next.js, TypeScript, 
   - Consistent button components with multiple variants (primary, secondary, outline, ghost, danger)
   - Loading states and animations for better user feedback
   - Sleek modals with backdrop blur effects
+  - Mobile-optimized responsive design with overflow prevention
 
 ## Project Structure
 

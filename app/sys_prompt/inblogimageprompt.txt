@@ -15,7 +15,8 @@ Follow these steps every time:
    - **Numeric formatting rule (non-negotiable):**  
       - **Always** use a **period i.e. dot (.)** as the decimal separator in **all** labels (e.g., write “0.85” **not** “0,85”).
       - Here the issue (limitation) is when the text_to_image model is generating the image, it is not able to generate the image with the correct decimal separator.
-      - So when you are trying to create the image and the image will content numerical values with decimal, you need to providee this instruction to text_to_image model, so that it does not make that mistake.
+      - So when you are trying to create the image and the image will contain numerical values with decimal, you need to provide this instruction to text_to_image model, so that it does not make that mistake.
+      - Use US formatting: decimal POINT, not comma.
 
 4. **Generate via the Image Tool**  
    - Call `image_gen.text2im` for each placeholder.  

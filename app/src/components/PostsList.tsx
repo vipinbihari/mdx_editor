@@ -217,16 +217,28 @@ const PostsList: React.FC<PostsListProps> = ({
           <div className="space-y-4">
             {posts.map((post) => (
               <div key={post.slug} className="relative">
-                {/* Delete button */}
-                <button 
-                  onClick={(e) => confirmDeletePost(e, post)}
-                  className="absolute top-2 right-2 z-10 p-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-colors duration-200"
-                  aria-label="Delete post"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                {/* Featured star and delete buttons */}
+                <div className="absolute top-2 right-2 z-10 flex items-center space-x-1">
+                  {post.featured && (
+                    <div 
+                      className="p-1.5 bg-yellow-100 text-yellow-600 rounded-full transition-colors duration-200"
+                      title="Featured Post"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    </div>
+                  )}
+                  <button 
+                    onClick={(e) => confirmDeletePost(e, post)}
+                    className="p-1.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-full transition-colors duration-200"
+                    aria-label="Delete post"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
                   
                 <Link
                   href={`/editor/${repoName}/${post.slug}?page=${currentPage}`}
@@ -278,6 +290,12 @@ const PostsList: React.FC<PostsListProps> = ({
                           <span className="font-medium">{post.author}</span>
                           <span className="mx-1">&middot;</span>
                           <span>{formatDateForDisplay(post.date)}</span>
+                          {post.category && (
+                            <>
+                              <span className="mx-1">&middot;</span>
+                              <span className="font-medium text-primary-600 dark:text-primary-400">{post.category}</span>
+                            </>
+                          )}
                         </div>
                         
                         <span className="text-primary-600 dark:text-primary-400 font-medium text-sm">
