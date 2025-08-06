@@ -9,8 +9,17 @@ A modern, modular web-based MDX blog content manager using Next.js, TypeScript, 
 - **Post listing**: View blog posts with pagination, thumbnails, metadata, categories, and featured status indicators with correct timezone handling
 - **Post management**: Create, edit, and delete posts with confirmation dialogs and proper feedback
 - **MDX editing**: Edit frontmatter metadata and MDX content with direct markdown editing and preview
-- **Image management**: Drag-and-drop image replacement for hero and in-blog images, with image zoom preview, logo stamping, and date stamping with customizable formats
-- **Image prompt generation**: Generate prompts for both hero images and in-blog images for AI image generation tools
+- **Advanced Image Management**: 
+  - Drag-and-drop image replacement for hero and in-blog images
+  - Image zoom preview with modal interface
+  - Logo stamping and date stamping with customizable formats
+  - **AI Image Generation**: Complete workflow for generating images using external AI services
+    - Intelligent prompt generation (hero vs in-blog specific)
+    - Conversation ID management with session storage
+    - One-click image replacement from generated URLs
+    - Placeholder-specific instructions for in-blog images
+    - Conversation cleanup and management tools
+  - **Optimized URL Replacement**: Single-call API for efficient image replacement from URLs
 - **Persistent navigation**: Seamless navigation between post list and editor with preserved state
 - **Modern UI**: Clean, responsive interface built with TailwindCSS featuring:
   - Full dark/light theme support with automated theme detection
@@ -173,7 +182,11 @@ npm start
 - `PUT /api/posts/[repoName]/[slug]`: Update a post
 - `DELETE /api/posts/[repoName]/[slug]`: Delete a post
 - `GET /api/image?repoName=<repoName>&imagePath=<imagePath>`: Get an image
-- `POST /api/images/replace`: Replace an image
+- `POST /api/images/replace`: Replace an image (traditional file upload)
+- `POST /api/images/fetch-url`: Fetch image from URL (CORS proxy)
+- `POST /api/images/replace-from-url`: Replace image from URL (optimized single-call)
+- `POST /api/images/stamp`: Stamp logo on image
+- `POST /api/images/stampDate`: Stamp date on image
 - `GET /api/system-prompt`: Get the system prompt for hero image generation
 - `GET /api/inblog-system-prompt`: Get the system prompt for in-blog image generation
 

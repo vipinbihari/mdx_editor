@@ -952,7 +952,30 @@ Converting between the two is handled in several functions, particularly in `ext
 
 ## Image Handling
 
-Image operations are implemented in the MDX operations utility (`src/utils/mdxOperations.ts`) and the API routes. This includes image serving, replacement (both file upload and URL import), and reference updating for both hero images and in-blog images.
+Image operations are implemented in the MDX operations utility (`src/utils/mdxOperations.ts`) and the API routes. This includes image serving, replacement (both file upload and URL import), AI-powered image generation, and reference updating for both hero images and in-blog images.
+
+### AI Image Generation Feature
+
+The application now includes a comprehensive AI image generation workflow integrated with external AI services:
+
+#### Generate Image Workflow
+1. **Step 1**: Click "Generate Image" button to trigger prompt generation
+2. **Step 2**: System generates appropriate prompts (hero vs in-blog specific)
+3. **Step 3**: Send prompt to AI service and receive conversation ID
+4. **Step 4**: Extract generated images using conversation ID
+5. **Step 5**: One-click replacement of existing images with generated ones
+
+#### Conversation Management
+- **Session Storage**: Conversation IDs persist per image with 1-hour expiry
+- **Manual Editing**: Users can manually input/edit conversation IDs
+- **Delete Conversations**: Clean up API conversations and local storage
+
+#### In-Blog Image Enhancement
+For in-blog images, the system automatically appends placeholder-specific instructions:
+```
+CREATE IMAGE FOR PLACEHOLDER 1 NOW  // For 1st in-blog image
+CREATE IMAGE FOR PLACEHOLDER 2 NOW  // For 2nd in-blog image
+```
 
 ### Image Serving
 
@@ -977,10 +1000,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
 ### Image Replacement API
 
-The `/api/images/replace` endpoint handles image replacement requests from the frontend. It supports two methods of image replacement:
+The application provides multiple API endpoints for image replacement:
 
-1. **File Upload**: Processing multipart form data with uploaded files
-2. **URL Import**: Fetching an image from an external URL
+#### `/api/images/replace` - Traditional File Upload
+Handles multipart form data with uploaded files for drag-and-drop image replacement.
+
+#### `/api/images/fetch-url` - CORS Proxy (Legacy)
+Fetches images from external URLs, primarily used as a CORS bypass proxy.
+
+#### `/api/images/replace-from-url` - Optimized URL Replacement
+New optimized endpoint that combines URL fetching and image replacement in a single API call:
+
+```typescript
+// POST /api/images/replace-from-url
+{
+  "imageUrl": "https://example.com/image.jpg",
+  "repoName": "my-repo",
+  "slug": "post-slug", 
+  "oldImagePath": "/images/uploads/old-image.jpg"
+}
+```
+
+**Benefits:**
+- Single API call instead of two-step process
+- Server-side URL fetching and validation
+- Direct repository storage
+- Better error handling
+- Improved performance
 
 ```typescript
 // /pages/api/images/replace.ts

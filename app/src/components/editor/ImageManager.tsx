@@ -236,7 +236,16 @@ const ImageManager: React.FC<ImageManagerProps> = ({
             /!\[[^\]]*\]\(\/images\/uploads\/[^)]+\)/g,
             () => `{INSERT IN BLOG IMAGE ${inBlogImageCounter++}}`
           );
-          return `${data.prompt}\n\n${transformedContent}`;
+          
+          // Determine which placeholder number this image corresponds to
+          const inBlogImages = images.filter(img => !img.inHero);
+          const currentImageIndex = inBlogImages.findIndex(img => img.path === image.path);
+          const placeholderNumber = currentImageIndex + 1; // 1-based indexing
+          
+          // Append the specific placeholder instruction for this image
+          const placeholderInstruction = `\n\nCREATE IMAGE FOR PLACEHOLDER ${placeholderNumber} NOW`;
+          
+          return `${data.prompt}\n\n${transformedContent}${placeholderInstruction}`;
         }
         return content;
       }
@@ -363,7 +372,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     }
   };
   
-  // Handle direct image replacement from extracted URL
+  // Handle direct image replacement from extracted URL using optimized endpoint
   const handleExtractedImageReplace = async (downloadUrl: string) => {
     if (!generateImage || !downloadUrl) return;
     
@@ -371,50 +380,51 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     setUploadError(null);
     
     try {
-      // Use backend proxy to fetch the image (bypasses CORS)
-      const response = await fetch('/api/images/fetch-url', {
+      // Use the new optimized endpoint that handles fetch + save in one call
+      const response = await fetch('/api/images/replace-from-url', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ imageUrl: downloadUrl }),
+        body: JSON.stringify({
+          imageUrl: downloadUrl,
+          repoName,
+          slug: post?.frontmatter?.slug || '',
+          oldImagePath: generateImage.path,
+        }),
       });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to fetch image: ${response.status} ${response.statusText}`);
+        throw new Error(errorData.error || `Failed to replace image: ${response.status} ${response.statusText}`);
       }
       
-      // Convert the response to a blob and then to a file
-      const blob = await response.blob();
+      const result = await response.json();
       
-      // Create a file name from the URL or use a default
-      let fileName = 'generated-image.jpg';
-      try {
-        const urlParts = new URL(downloadUrl);
-        const pathParts = urlParts.pathname.split('/');
-        fileName = pathParts[pathParts.length - 1] || 'generated-image.jpg';
+      if (result.success) {
+        // Force refresh the image cache by updating existing image elements
+        const newCacheBuster = Date.now();
         
-        // Make sure the file has an extension
-        if (!fileName.includes('.')) {
-          fileName += '.jpg';  // Default extension if none is provided
-        }
-      } catch {
-        // If URL parsing fails, use default name
-        fileName = 'generated-image.jpg';
+        // Update any existing image elements to force reload
+        const imageElements = document.querySelectorAll(`img[src*="${generateImage.path}"]`);
+        imageElements.forEach(img => {
+          const currentSrc = img.getAttribute('src');
+          if (currentSrc) {
+            const newSrc = currentSrc.split('&t=')[0] + `&t=${newCacheBuster}`;
+            img.setAttribute('src', newSrc);
+          }
+        });
+        
+        console.log(`✅ Generated image successfully replaced: ${result.message}`);
+        
+        // Reset UI state - close the generate image panel
+        setGenerateImage(null);
+        setConversationId('');
+        setExtractedImages([]);
+        setAuthToken('XYZ'); // Reset to default
+      } else {
+        throw new Error(result.error || 'Unexpected response format');
       }
-      
-      // Create a File object from the blob
-      const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
-      
-      // Use the same replacement function as for drag-and-drop
-      onImageReplace(generateImage, file);
-      
-      // Reset UI state - close the generate image panel
-      setGenerateImage(null);
-      setConversationId('');
-      setExtractedImages([]);
-      setAuthToken('');
       
     } catch (error) {
       console.error('Error replacing image from extracted URL:', error);
@@ -515,7 +525,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     }
   };
   
-  // Handle URL image replacement
+  // Handle URL image replacement using optimized single-call endpoint
   const handleUrlImageReplace = async () => {
     if (!activeImage || !imageUrl) return;
     
@@ -523,45 +533,52 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     setUploadError(null);
     
     try {
-      // Use backend proxy to fetch the image (bypasses CORS)
-      const response = await fetch('/api/images/fetch-url', {
+      // Use the new optimized endpoint that handles fetch + save in one call
+      const response = await fetch('/api/images/replace-from-url', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ imageUrl }),
+        body: JSON.stringify({
+          imageUrl,
+          repoName,
+          slug: post?.frontmatter?.slug || '',
+          oldImagePath: activeImage.path,
+        }),
       });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Failed to fetch image: ${response.status} ${response.statusText}`);
+        throw new Error(errorData.error || `Failed to replace image: ${response.status} ${response.statusText}`);
       }
       
-      // Convert the response to a blob and then to a file
-      const blob = await response.blob();
+      const result = await response.json();
       
-      // Create a file name from the URL
-      const urlParts = new URL(imageUrl);
-      const pathParts = urlParts.pathname.split('/');
-      let fileName = pathParts[pathParts.length - 1] || 'image.jpg';
-      
-      // Make sure the file has an extension
-      if (!fileName.includes('.')) {
-        fileName += '.jpg';  // Default extension if none is provided
+      if (result.success) {
+        // Force refresh the image cache by updating existing image elements
+        const newCacheBuster = Date.now();
+        
+        // Update any existing image elements to force reload
+        const imageElements = document.querySelectorAll(`img[src*="${activeImage.path}"]`);
+        imageElements.forEach(img => {
+          const currentSrc = img.getAttribute('src');
+          if (currentSrc) {
+            const newSrc = currentSrc.split('&t=')[0] + `&t=${newCacheBuster}`;
+            img.setAttribute('src', newSrc);
+          }
+        });
+        
+        console.log(`✅ Image successfully replaced: ${result.message}`);
+        
+        // Reset UI state
+        setImageUrl('');
+        setActiveImage(null);
+      } else {
+        throw new Error(result.error || 'Unexpected response format');
       }
-      
-      // Create a File object from the blob
-      const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
-      
-      // Use the same replacement function as for drag-and-drop
-      onImageReplace(activeImage, file);
-      
-      // Reset UI state
-      setImageUrl('');
-      setActiveImage(null);
     } catch (error) {
-      console.error('Error fetching image from URL:', error);
-      setUploadError(`Failed to fetch image from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error replacing image from URL:', error);
+      setUploadError(`Failed to replace image from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoadingUrl(false);
     }
