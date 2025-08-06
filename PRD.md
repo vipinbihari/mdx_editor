@@ -53,16 +53,34 @@ MDX files contain frontmatter with fields such as:
 - Clean, modern editor interface
 - Toggle between editing and preview modes
 
-### 4. Image Management
-- Replace hero images via drag-and-drop
-- Replace in-blog images via drag-and-drop
-- Automatic path management and file replacement
-- Image preview before replacing
-- Image zoom functionality for detailed inspection
-- Visual feedback with zoom cursor indicator
-- Hero image prompt generation for AI image tools
-- In-blog image prompt generation with automated placeholder insertion
-- Stamp images with repository logos (overlay repository logo.png onto images at the bottom-right corner)
+### 4. Advanced Image Management
+- **Traditional Replacement**:
+  - Replace hero images via drag-and-drop
+  - Replace in-blog images via drag-and-drop
+  - Automatic path management and file replacement
+  - Image preview before replacing
+  - Image zoom functionality for detailed inspection
+  - Visual feedback with zoom cursor indicator
+
+- **AI-Powered Image Generation**:
+  - Generate Image button for both hero and in-blog images
+  - Intelligent prompt generation (hero vs in-blog specific)
+  - Integration with external AI image generation services
+  - Conversation ID management with session storage (1-hour expiry)
+  - Extract generated images from AI conversations
+  - One-click replacement of existing images with generated ones
+  - Placeholder-specific instructions for in-blog images ("CREATE IMAGE FOR PLACEHOLDER N NOW")
+  - Delete conversation functionality for cleanup
+  - Manual conversation ID editing capability
+
+- **URL-Based Replacement**:
+  - Import images from external URLs
+  - Optimized single-call API for efficient processing
+  - Server-side URL validation and CORS handling
+
+- **Image Enhancement**:
+  - Stamp images with repository logos (overlay repository logo.png onto images at bottom-right corner)
+  - Date stamping with customizable formats
 
 ### 5. Metadata Editing
 - Edit all frontmatter fields

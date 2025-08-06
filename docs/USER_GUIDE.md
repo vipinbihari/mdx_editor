@@ -235,7 +235,7 @@ The Images tab shows:
 
 ### Replacing Images
 
-You can replace images in two ways:
+You can replace images in multiple ways:
 
 #### Method 1: Upload from your computer
 
@@ -252,6 +252,31 @@ You can replace images in two ways:
 3. In the replacement interface that appears below the selected image, paste an image URL in the "Import from URL" field
 4. Click the "Import" button
 5. The system will fetch the image from the URL, upload it, and replace the existing image
+
+#### Method 3: AI Image Generation
+
+The application includes a powerful AI image generation workflow:
+
+1. **Generate Image**: Click "Generate Image" on any image you want to replace with AI-generated content
+2. **Step 1 - Generate Prompt**: The system automatically creates an appropriate prompt:
+   - For hero images: Uses hero-specific system prompts + post content
+   - For in-blog images: Uses in-blog system prompts + content with placeholder instructions ("CREATE IMAGE FOR PLACEHOLDER N NOW")
+3. **Step 2 - Send to AI Service**: Click "Generate Image" to send the prompt to the AI service and receive a conversation ID
+4. **Step 3 - Manage Conversation**: 
+   - View and edit the conversation ID (automatically saved with 1-hour expiry)
+   - Set auth token (defaults to "XYZ")
+   - Extract images using "Extract Images" button
+   - Delete conversations when done with "Delete Conversation" button
+5. **Step 4 - Replace Image**: Each extracted image shows:
+   - Alt text and download URL with copy-to-clipboard functionality
+   - "Replace" button for one-click image replacement
+
+**AI Generation Features:**
+- **Session Storage**: Conversation IDs persist per image for 1 hour
+- **Smart Prompts**: Automatically determines hero vs in-blog context
+- **Placeholder Targeting**: In-blog images get specific placeholder instructions (1, 2, 3, etc.)
+- **One-Click Replacement**: Generated images can replace existing ones instantly
+- **Conversation Cleanup**: Delete API conversations and clear local storage
 
 ### Stamping Images with Logos
 

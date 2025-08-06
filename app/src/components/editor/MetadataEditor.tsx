@@ -222,7 +222,7 @@ const MetadataEditor: React.FC<MetadataEditorProps> = ({
             ))}
           </div>
           
-          <form onSubmit={handleAddTag} className="flex">
+          <form onSubmit={handleAddTag} className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               value={newTag}
@@ -232,7 +232,7 @@ const MetadataEditor: React.FC<MetadataEditorProps> = ({
             />
             <button
               type="submit"
-              className="ml-2 btn btn-outline dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 rounded-md px-4 py-2 transition-all duration-200 hover:shadow flex items-center"
+              className="w-full sm:w-auto btn btn-outline dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 rounded-md px-4 py-2 transition-all duration-200 hover:shadow flex items-center justify-center"
               disabled={!newTag.trim()}
             >
               Add

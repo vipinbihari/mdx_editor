@@ -6,7 +6,9 @@ import ImageZoomModal from './ImageZoomModal';
 import { formatDateForDisplay } from '@/utils/dateUtils';
 
 // API Configuration
-const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
+//
+// const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
+const API_BASE_URL = 'http://localhost:5000';
 
 // API Response interfaces
 interface ApiImageResponse {
@@ -669,8 +671,8 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     if (!isSelected) return null;
     
     return (
-      <div className="mt-4 p-4 border border-purple-200 dark:border-purple-700 rounded-lg bg-purple-50 dark:bg-purple-900/20">
-        <h4 className="font-medium text-purple-800 dark:text-purple-200 mb-3">
+      <div className="mt-4 p-4 border border-primary-200 dark:border-primary-800 rounded-lg bg-primary-50 dark:bg-primary-900/20">
+        <h4 className="font-medium text-primary-800 dark:text-primary-300 mb-3">
           Generate Image ({image.inHero ? 'Hero' : 'In-blog'} Image)
         </h4>
         
@@ -683,7 +685,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
             <button
               onClick={handleGenerateImage}
               disabled={isGenerating}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
               {isGenerating ? (
                 <>
@@ -694,7 +696,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                   Generating...
                 </>
               ) : (
-                'Generate Image'
+                'Generate Now'
               )}
             </button>
           </div>
@@ -798,13 +800,27 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                           />
                           <button
                             onClick={() => handleCopyToClipboard(img.altText, `alt-${index}`)}
-                            className={`px-2 py-1 text-xs border-t border-r border-b border-gray-300 dark:border-gray-600 rounded-r-md ${
+                            className={`px-2 py-1 text-xs font-semibold border border-purple-300 dark:border-purple-500 text-white shadow-sm transition-all duration-200 rounded-r-md flex items-center justify-center ${
                               copiedText === `alt-${index}` 
-                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                                : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
+                                ? 'bg-green-500 dark:bg-green-600 border-green-400 dark:border-green-500' 
+                                : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 dark:from-purple-600 dark:to-purple-700 dark:hover:from-purple-700 dark:hover:to-purple-800 transform hover:scale-105'
                             }`}
                           >
-                            {copiedText === `alt-${index}` ? '✓' : 'Copy'}
+                            {copiedText === `alt-${index}` ? (
+                              <span className="flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span className="hidden sm:inline">Copied</span>
+                              </span>
+                            ) : (
+                              <span className="flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <span className="hidden sm:inline">Copy</span>
+                              </span>
+                            )}
                           </button>
                         </div>
                       </div>
@@ -812,50 +828,66 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Download URL:
                         </label>
-                        <div className="flex">
+                        <div className="flex flex-col sm:flex-row gap-1">
                           <input
                             type="text"
                             value={img.downloadUrl}
                             readOnly
-                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-l-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md sm:rounded-l-md sm:rounded-r-none bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
                           />
-                          <button
-                            onClick={() => handleExtractedImageReplace(img.downloadUrl)}
-                            disabled={isExtracting}
-                            className={`px-3 py-1 text-xs font-semibold border-t border-r border-b border-blue-300 dark:border-blue-500 text-white shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                              isExtracting 
-                                ? 'bg-blue-400 dark:bg-blue-600 animate-pulse' 
-                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 transform hover:scale-105'
-                            }`}
-                            title="Replace the current image with this generated image"
-                          >
-                            {isExtracting ? (
-                              <span className="flex items-center">
-                                <svg className="animate-spin -ml-1 mr-1 h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Replacing
-                              </span>
-                            ) : (
-                              <span className="flex items-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                </svg>
-                                Replace
-                              </span>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleCopyToClipboard(img.downloadUrl, `url-${index}`)}
-                            className={`px-2 py-1 text-xs border-t border-r border-b border-gray-300 dark:border-gray-600 rounded-r-md ${
-                              copiedText === `url-${index}` 
-                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
-                                : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
-                            }`}
-                          >
-                            {copiedText === `url-${index}` ? '✓' : 'Copy'}
-                          </button>
+                          <div className="flex gap-0">
+                            <button
+                              onClick={() => handleExtractedImageReplace(img.downloadUrl)}
+                              disabled={isExtracting}
+                              className={`flex-1 sm:flex-none px-2 sm:px-3 py-1 text-xs font-semibold border border-blue-300 dark:border-blue-500 text-white shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-l-md sm:rounded-none ${
+                                isExtracting 
+                                  ? 'bg-blue-400 dark:bg-blue-600 animate-pulse' 
+                                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 transform hover:scale-105'
+                              }`}
+                              title="Replace the current image with this generated image"
+                            >
+                              {isExtracting ? (
+                                <span className="flex items-center justify-center">
+                                  <svg className="animate-spin h-3 w-3 sm:mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  <span className="hidden sm:inline ml-1">Replacing</span>
+                                </span>
+                              ) : (
+                                <span className="flex items-center justify-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                  </svg>
+                                  <span className="hidden sm:inline ml-1">Replace</span>
+                                </span>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleCopyToClipboard(img.downloadUrl, `url-${index}`)}
+                              className={`flex-1 sm:flex-none px-2 py-1 text-xs font-semibold border border-purple-300 dark:border-purple-500 text-white shadow-sm transition-all duration-200 rounded-r-md flex items-center justify-center ${
+                                copiedText === `url-${index}` 
+                                  ? 'bg-green-500 dark:bg-green-600 border-green-400 dark:border-green-500' 
+                                  : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 dark:from-purple-600 dark:to-purple-700 dark:hover:from-purple-700 dark:hover:to-purple-800 transform hover:scale-105'
+                              }`}
+                            >
+                              {copiedText === `url-${index}` ? (
+                                <span className="flex items-center justify-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  <span className="hidden sm:inline">Copied</span>
+                                </span>
+                              ) : (
+                                <span className="flex items-center justify-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                  <span className="hidden sm:inline">Copy</span>
+                                </span>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1075,7 +1107,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   };
 
   return (
-    <div className="p-6">
+    <div className="p-1 sm:p-6">
       {/* Image Zoom Modal */}
       <ImageZoomModal
         isOpen={zoomModalOpen}

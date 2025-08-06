@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { BlogPost, BlogImage } from '@/types';
 import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import MetadataEditor from '@/components/editor/MetadataEditor';
 import ContentEditor from '@/components/editor/ContentEditor';
 import ImageManager from '@/components/editor/ImageManager';
@@ -253,39 +252,44 @@ export default function PostEditor() {
           </div>
         ) : post ? (
           <div>
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-4">
-                  {post.frontmatter.title}
-                </h1>
-                <p className="text-gray-600 dark:text-gray-300 mt-1">
-                  Editing post in <span className="font-medium">{repoName}</span> repository
-                </p>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <Button
-                  onClick={() => router.push(`/?repo=${repoName}${page ? `&page=${page}` : ''}`)}                  
-                  variant="outline"
-                  size="md"
-                  leftIcon={
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                    </svg>
-                  }
-                >
-                  Back to List
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={saving || !hasUnsavedChanges()}
-                  variant="primary"
-                  size="md"
-                  isLoading={saving}
-                  className="shadow-md hover:shadow-lg transition-shadow duration-300"
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
+            {/* Mobile-responsive header with buttons */}
+            <div className="mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mb-2 sm:mb-4 break-words">
+                    {post.frontmatter.title}
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">
+                    Editing post in <span className="font-medium">{repoName}</span> repository
+                  </p>
+                </div>
+                
+                {/* Responsive buttons container */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-shrink-0">
+                  <Button
+                    onClick={() => router.push(`/?repo=${repoName}${page ? `&page=${page}` : ''}`)}
+                    variant="outline"
+                    size="md"
+                    leftIcon={
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                      </svg>
+                    }
+                    className="w-full sm:w-auto"
+                  >
+                    Back to List
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving || !hasUnsavedChanges()}
+                    variant="primary"
+                    size="md"
+                    isLoading={saving}
+                    className="w-full sm:w-auto shadow-md hover:shadow-lg transition-shadow duration-300"
+                  >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
               </div>
             </div>
             
@@ -339,8 +343,8 @@ export default function PostEditor() {
           </div>
         ) : (
           <div className="text-center py-10">
-            <h2 className="text-2xl font-bold text-gray-800">Post not found</h2>
-            <p className="text-gray-600 mt-2">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Post not found</h2>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">
               The post you&apos;re looking for doesn&apos;t exist or couldn&apos;t be loaded.
             </p>
             <button
@@ -352,8 +356,6 @@ export default function PostEditor() {
           </div>
         )}
       </main>
-      
-      <Footer />
     </>
   );
 }

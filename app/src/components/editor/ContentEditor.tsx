@@ -17,7 +17,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({
   // No rich editor mode needed
 
   return (
-    <div className="p-6 dark:bg-gray-800">
+    <div className="p-1 sm:p-6 dark:bg-gray-800">
       <h2 className="text-xl font-bold mb-6 dark:text-white flex items-center">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
