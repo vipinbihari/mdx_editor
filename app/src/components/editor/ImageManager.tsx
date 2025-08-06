@@ -5,6 +5,9 @@ import { BlogImage, BlogPost } from '@/types';
 import ImageZoomModal from './ImageZoomModal';
 import { formatDateForDisplay } from '@/utils/dateUtils';
 
+// API Configuration
+const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
+
 interface ImageManagerProps {
   images: BlogImage[];
   repoName: string;
@@ -41,6 +44,61 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   const [isDateStamping, setIsDateStamping] = useState<boolean>(false);
   const [dateToStamp, setDateToStamp] = useState<string>('');
   const imageUrlInputRef = useRef<HTMLInputElement>(null);
+  
+  // Generate Image feature state
+  const [generateImage, setGenerateImage] = useState<BlogImage | null>(null);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [conversationId, setConversationId] = useState<string>('');
+  const [isExtracting, setIsExtracting] = useState<boolean>(false);
+  const [extractedImages, setExtractedImages] = useState<Array<{altText: string, downloadUrl: string}>>([]);
+  const [authToken, setAuthToken] = useState<string>('XYZ');
+  const [copiedText, setCopiedText] = useState<string>('');
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  
+  // Session storage helper functions
+  const getStorageKey = (image: BlogImage) => {
+    const imageName = image.path.split('/').pop() || 'unknown.png';
+    return `conversation_${repoName}_${post?.frontmatter?.slug || 'unknown'}_${imageName}`;
+  };
+  
+  const saveConversationId = (image: BlogImage, convId: string) => {
+    const key = getStorageKey(image);
+    const data = {
+      conversationId: convId,
+      timestamp: Date.now(),
+      expiresAt: Date.now() + (60 * 60 * 1000) // 1 hour from now
+    };
+    sessionStorage.setItem(key, JSON.stringify(data));
+  };
+  
+  const loadConversationId = (image: BlogImage): string => {
+    const key = getStorageKey(image);
+    try {
+      const stored = sessionStorage.getItem(key);
+      if (stored) {
+        const data = JSON.parse(stored);
+        // Check if data has expired (1 hour)
+        if (Date.now() < data.expiresAt) {
+          return data.conversationId || '';
+        } else {
+          // Clean up expired data
+          sessionStorage.removeItem(key);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading conversation ID from storage:', error);
+    }
+    return '';
+  };
+  
+  const removeConversationId = (image: BlogImage) => {
+    const key = getStorageKey(image);
+    try {
+      sessionStorage.removeItem(key);
+    } catch (error) {
+      console.error('Error removing conversation ID from storage:', error);
+    }
+  };
   
   // Use a consistent timestamp for the entire component lifecycle to avoid unnecessary refetching
   const cacheBuster = useRef(Date.now()).current;
@@ -146,6 +204,259 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     }
   };
   
+  // Generate prompt for image generation
+  const generatePrompt = async (image: BlogImage): Promise<string> => {
+    const isHero = image.inHero;
+    const content = post?.content || '';
+    
+    try {
+      if (isHero) {
+        // Generate hero image prompt
+        const response = await fetch('/api/system-prompt');
+        const data = await response.json();
+        if (data.prompt) {
+          return `${data.prompt}\n\n${content}`;
+        }
+        return content;
+      } else {
+        // Generate in-blog image prompt
+        const response = await fetch('/api/inblog-system-prompt');
+        const data = await response.json();
+        if (data.prompt) {
+          // Transform content like InBlogImagePrompt does
+          let transformedContent = content;
+          let inBlogImageCounter = 1;
+          transformedContent = transformedContent.replace(
+            /!\[[^\]]*\]\(\/images\/uploads\/[^)]+\)/g,
+            () => `{INSERT IN BLOG IMAGE ${inBlogImageCounter++}}`
+          );
+          return `${data.prompt}\n\n${transformedContent}`;
+        }
+        return content;
+      }
+    } catch (error) {
+      console.error('Error generating prompt:', error);
+      return content;
+    }
+  };
+  
+  // Handle image generation
+  const handleGenerateImage = async () => {
+    if (!generateImage) return;
+    
+    setIsGenerating(true);
+    setUploadError(null);
+    
+    try {
+      const prompt = await generatePrompt(generateImage);
+      
+      const response = await fetch(`${API_BASE_URL}/send-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: prompt
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.conversation_id) {
+          const newConvId = data.conversation_id;
+          setConversationId(newConvId);
+          // Save to session storage
+          saveConversationId(generateImage, newConvId);
+        } else {
+          setUploadError('Failed to generate image: Invalid response');
+        }
+      } else {
+        setUploadError('Failed to generate image: API error');
+      }
+    } catch (error) {
+      console.error('Error generating image:', error);
+      setUploadError('Failed to generate image: Network error');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+  
+  // Handle manual conversation ID changes
+  const handleConversationIdChange = (value: string, image: BlogImage) => {
+    setConversationId(value);
+    // Save to session storage when user manually enters a conversation ID
+    if (value.trim()) {
+      saveConversationId(image, value.trim());
+    }
+  };
+  
+  // Handle image extraction
+  const handleExtractImage = async () => {
+    if (!conversationId) return;
+    
+    setIsExtracting(true);
+    setUploadError(null);
+    
+    try {
+      const url = `${API_BASE_URL}/conversation/${conversationId}/images${authToken ? `?auth_token=${authToken}` : ''}`;
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.images && data.images.length > 0) {
+          const images = data.images.map((img: any) => ({
+            altText: img.alt_text || '',
+            downloadUrl: img.download_url || ''
+          }));
+          setExtractedImages(images);
+        } else {
+          setUploadError('No images found in conversation');
+        }
+      } else {
+        setUploadError('Failed to extract images: API error');
+      }
+    } catch (error) {
+      console.error('Error extracting images:', error);
+      setUploadError('Failed to extract images: Network error');
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+  
+  // Handle conversation deletion
+  const handleDeleteConversation = async () => {
+    if (!conversationId || !generateImage) return;
+    
+    setIsDeleting(true);
+    setUploadError(null);
+    
+    try {
+      const url = `${API_BASE_URL}/conversation/${conversationId}${authToken ? `?auth_token=${authToken}` : ''}`;
+      const response = await fetch(url, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        // Remove from session storage
+        removeConversationId(generateImage);
+        
+        // Reset UI state
+        setConversationId('');
+        setExtractedImages([]);
+        
+        // Show success (could add a success message if needed)
+        console.log('Conversation deleted successfully');
+      } else {
+        setUploadError('Failed to delete conversation: API error');
+      }
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      setUploadError('Failed to delete conversation: Network error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
+  // Handle direct image replacement from extracted URL
+  const handleExtractedImageReplace = async (downloadUrl: string) => {
+    if (!generateImage || !downloadUrl) return;
+    
+    setIsExtracting(true);
+    setUploadError(null);
+    
+    try {
+      // Use backend proxy to fetch the image (bypasses CORS)
+      const response = await fetch('/api/images/fetch-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageUrl: downloadUrl }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+      
+      // Convert the response to a blob and then to a file
+      const blob = await response.blob();
+      
+      // Create a file name from the URL or use a default
+      let fileName = 'generated-image.jpg';
+      try {
+        const urlParts = new URL(downloadUrl);
+        const pathParts = urlParts.pathname.split('/');
+        fileName = pathParts[pathParts.length - 1] || 'generated-image.jpg';
+        
+        // Make sure the file has an extension
+        if (!fileName.includes('.')) {
+          fileName += '.jpg';  // Default extension if none is provided
+        }
+      } catch (urlError) {
+        // If URL parsing fails, use default name
+        fileName = 'generated-image.jpg';
+      }
+      
+      // Create a File object from the blob
+      const file = new File([blob], fileName, { type: blob.type || 'image/jpeg' });
+      
+      // Use the same replacement function as for drag-and-drop
+      onImageReplace(generateImage, file);
+      
+      // Reset UI state - close the generate image panel
+      setGenerateImage(null);
+      setConversationId('');
+      setExtractedImages([]);
+      setAuthToken('');
+      
+    } catch (error) {
+      console.error('Error replacing image from extracted URL:', error);
+      setUploadError(`Failed to replace image from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  // Handle copy to clipboard
+  const handleCopyToClipboard = async (text: string, type: string) => {
+    try {
+      // Check if the modern Clipboard API is available
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback method for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        return new Promise<void>((resolve, reject) => {
+          if (document.execCommand('copy')) {
+            document.body.removeChild(textArea);
+            resolve();
+          } else {
+            document.body.removeChild(textArea);
+            reject(new Error('Copy command failed'));
+          }
+        });
+      }
+      
+      setCopiedText(type);
+      setTimeout(() => setCopiedText(''), 2000);
+    } catch (error) {
+      console.error('Failed to copy text to clipboard:', error);
+      setUploadError('Failed to copy to clipboard. Please copy manually.');
+      // Still show the copied state briefly to indicate the attempt
+      setCopiedText(type);
+      setTimeout(() => setCopiedText(''), 1000);
+    }
+  };
+
   // Handle image stamping with date
   const handleStampDate = async () => {
     if (!stampDateImage || !dateToStamp) {
@@ -328,6 +639,213 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     );
   };
   
+  // Helper to render image generation UI
+  const renderImageGeneration = (image: BlogImage) => {
+    const isSelected = generateImage?.path === image.path;
+    
+    if (!isSelected) return null;
+    
+    return (
+      <div className="mt-4 p-4 border border-purple-200 dark:border-purple-700 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+        <h4 className="font-medium text-purple-800 dark:text-purple-200 mb-3">
+          Generate Image ({image.inHero ? 'Hero' : 'In-blog'} Image)
+        </h4>
+        
+        <div className="space-y-4">
+          {/* Step 1: Generate Image */}
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
+              Step 1: Generate AI prompt and send to image generation service
+            </p>
+            <button
+              onClick={handleGenerateImage}
+              disabled={isGenerating}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              {isGenerating ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating...
+                </>
+              ) : (
+                'Generate Image'
+              )}
+            </button>
+          </div>
+          
+          {/* Step 2: Conversation ID and Auth Token (Always visible) */}
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+              Step 2: Enter or edit conversation ID, add auth token (optional), and extract images
+            </p>
+            <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Conversation ID:
+                </label>
+                <input
+                  type="text"
+                  value={conversationId}
+                  onChange={(e) => handleConversationIdChange(e.target.value, image)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  placeholder="Enter conversation ID (from API response or manually)"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Auth Token (optional):
+                </label>
+                <input
+                  type="text"
+                  value={authToken}
+                  onChange={(e) => setAuthToken(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                  placeholder="Auth Token (optional)"
+                />
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleExtractImage}
+                  disabled={isExtracting || !conversationId.trim()}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {isExtracting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Extracting...
+                    </>
+                  ) : (
+                    'Extract Images'
+                  )}
+                </button>
+                
+                <button
+                  onClick={handleDeleteConversation}
+                  disabled={isDeleting || !conversationId.trim()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  title="Delete this conversation and remove from storage"
+                >
+                  {isDeleting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Delete Conversation
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Step 3: Extracted Images Results */}
+          {extractedImages.length > 0 && (
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                Step 3: Extracted images ({extractedImages.length} found)
+              </p>
+              <div className="space-y-3">
+                {extractedImages.map((img, index) => (
+                  <div key={index} className="p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Alt Text:
+                        </label>
+                        <div className="flex">
+                          <input
+                            type="text"
+                            value={img.altText}
+                            readOnly
+                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-l-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                          />
+                          <button
+                            onClick={() => handleCopyToClipboard(img.altText, `alt-${index}`)}
+                            className={`px-2 py-1 text-xs border-t border-r border-b border-gray-300 dark:border-gray-600 rounded-r-md ${
+                              copiedText === `alt-${index}` 
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                                : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
+                            }`}
+                          >
+                            {copiedText === `alt-${index}` ? '✓' : 'Copy'}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Download URL:
+                        </label>
+                        <div className="flex">
+                          <input
+                            type="text"
+                            value={img.downloadUrl}
+                            readOnly
+                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-l-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                          />
+                          <button
+                            onClick={() => handleExtractedImageReplace(img.downloadUrl)}
+                            disabled={isExtracting}
+                            className={`px-3 py-1 text-xs font-semibold border-t border-r border-b border-blue-300 dark:border-blue-500 text-white shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                              isExtracting 
+                                ? 'bg-blue-400 dark:bg-blue-600 animate-pulse' 
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 transform hover:scale-105'
+                            }`}
+                            title="Replace the current image with this generated image"
+                          >
+                            {isExtracting ? (
+                              <span className="flex items-center">
+                                <svg className="animate-spin -ml-1 mr-1 h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Replacing
+                              </span>
+                            ) : (
+                              <span className="flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                Replace
+                              </span>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleCopyToClipboard(img.downloadUrl, `url-${index}`)}
+                            className={`px-2 py-1 text-xs border-t border-r border-b border-gray-300 dark:border-gray-600 rounded-r-md ${
+                              copiedText === `url-${index}` 
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' 
+                                : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
+                            }`}
+                          >
+                            {copiedText === `url-${index}` ? '✓' : 'Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+  
   // Helper to render image replacement UI for a specific image
   const renderImageReplacement = (image: BlogImage) => {
     return (
@@ -447,9 +965,12 @@ const ImageManager: React.FC<ImageManagerProps> = ({
             <div className="flex space-x-3">
               <button
                 onClick={() => {
-                  // Toggle active state for this image
+                  // Toggle replacement state for this image
+                  const isSelected = activeImage?.path === image.path;
                   setActiveImage(isSelected ? null : image);
                   setStampImage(null);
+                  setStampDateImage(null);
+                  setGenerateImage(null);
                   setUploadError(null);
                   setImageUrl('');
                 }}
@@ -460,10 +981,33 @@ const ImageManager: React.FC<ImageManagerProps> = ({
               
               <button
                 onClick={() => {
+                  // Toggle generate image state for this image
+                  const isSelected = generateImage?.path === image.path;
+                  setGenerateImage(isSelected ? null : image);
+                  setActiveImage(null);
+                  setStampImage(null);
+                  setStampDateImage(null);
+                  setUploadError(null);
+                  // Load conversation ID from storage or reset when switching images
+                  if (!isSelected) {
+                    const storedConvId = loadConversationId(image);
+                    setConversationId(storedConvId);
+                    setExtractedImages([]);
+                    setAuthToken('XYZ'); // Always default to XYZ
+                  }
+                }}
+                className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+              >
+                {generateImage?.path === image.path ? 'Cancel' : 'Generate Image'}
+              </button>
+              
+              <button
+                onClick={() => {
                   // Toggle stamp state for this image
                   setStampImage(stampImage?.path === image.path ? null : image);
                   setStampDateImage(null);
                   setActiveImage(null);
+                  setGenerateImage(null);
                   setUploadError(null);
                 }}
                 className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
@@ -477,6 +1021,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                   setStampDateImage(stampDateImage?.path === image.path ? null : image);
                   setStampImage(null);
                   setActiveImage(null);
+                  setGenerateImage(null);
                   setUploadError(null);
                 }}
                 className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
@@ -493,6 +1038,9 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         
         {/* Render replacement UI directly below this image if it's selected */}
         {isSelected && renderImageReplacement(image)}
+        
+        {/* Render generate image UI directly below this image if it's selected */}
+        {generateImage?.path === image.path && renderImageGeneration(image)}
         
         {/* Render stamping UI directly below this image if it's selected for stamping */}
         {stampImage?.path === image.path && renderStampingInterface(image)}
