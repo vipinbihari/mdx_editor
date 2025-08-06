@@ -8,6 +8,12 @@ import { formatDateForDisplay } from '@/utils/dateUtils';
 // API Configuration
 const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
 
+// API Response interfaces
+interface ApiImageResponse {
+  alt_text?: string;
+  download_url?: string;
+}
+
 interface ImageManagerProps {
   images: BlogImage[];
   repoName: string;
@@ -304,7 +310,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.images && data.images.length > 0) {
-          const images = data.images.map((img: any) => ({
+          const images = data.images.map((img: ApiImageResponse) => ({
             altText: img.alt_text || '',
             downloadUrl: img.download_url || ''
           }));
@@ -393,7 +399,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         if (!fileName.includes('.')) {
           fileName += '.jpg';  // Default extension if none is provided
         }
-      } catch (urlError) {
+      } catch {
         // If URL parsing fails, use default name
         fileName = 'generated-image.jpg';
       }
