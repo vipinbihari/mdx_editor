@@ -10,6 +10,8 @@ A modern, modular web-based MDX blog content manager using Next.js, TypeScript, 
 - **Post management**: Create, edit, and delete posts with confirmation dialogs and proper feedback
 - **MDX editing**: Edit frontmatter metadata and MDX content with direct markdown editing and preview
 - **Advanced Image Management**: 
+  - **Per-Image State Management**: Independent action containers for each image, allowing simultaneous operations
+  - **Smart Image Refresh**: Only the modified image refreshes after actions - no flickering of other images
   - Drag-and-drop image replacement for hero and in-blog images
   - Image zoom preview with modal interface
   - Logo stamping and date stamping with customizable formats
@@ -17,6 +19,7 @@ A modern, modular web-based MDX blog content manager using Next.js, TypeScript, 
     - Intelligent prompt generation (hero vs in-blog specific)
     - Conversation ID management with session storage
     - One-click image replacement from generated URLs
+    - Extracted image preview with "Open in new tab" functionality
     - Placeholder-specific instructions for in-blog images
     - Conversation cleanup and management tools
   - **Optimized URL Replacement**: Single-call API for efficient image replacement from URLs

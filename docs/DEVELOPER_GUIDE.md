@@ -1281,6 +1281,83 @@ const positions = {
 - **Responsive Design**: All elements scale proportionally with image size
 - **Memory Efficiency**: Sequential read and optimized Sharp pipelines
 
+### Per-Image State Management and Refresh System
+
+The ImageManager component implements sophisticated per-image state management to enable independent operations on multiple images simultaneously:
+
+#### Independent State Architecture
+
+Each image maintains its own state for various operations:
+
+```typescript
+// Per-image state objects (keyed by image path)
+const [replaceImageStates, setReplaceImageStates] = useState<Record<string, boolean>>({});
+const [generateImageStates, setGenerateImageStates] = useState<Record<string, GenerateImageState>>({});
+const [stampImageStates, setStampImageStates] = useState<Record<string, boolean>>({});
+const [stampDateImageStates, setStampDateImageStates] = useState<Record<string, boolean>>({});
+const [imageCacheBusters, setImageCacheBusters] = useState<Record<string, number>>({});
+```
+
+This allows users to:
+- Have multiple image action containers open simultaneously
+- Work on different operations across multiple images in parallel
+- Maintain state isolation between images
+
+#### Smart Image Refresh System
+
+The per-image cache busting system ensures only the modified image refreshes:
+
+```typescript
+// Refresh a specific image
+const refreshImage = (imagePath: string) => {
+  setImageCacheBusters(prev => ({
+    ...prev,
+    [imagePath]: Date.now()  // Only updates this specific image's timestamp
+  }));
+};
+
+// Get cache buster for a specific image
+const getCacheBuster = (imagePath: string): number => {
+  return imageCacheBusters[imagePath] || 0;
+};
+
+// Usage in image URLs
+const imageUrl = `/api/image?repoName=${repoName}&imagePath=${image.path}&t=${getCacheBuster(image.path)}`;
+```
+
+**Benefits:**
+- No visual flickering of unrelated images
+- Reduced network traffic (only one image reloads)
+- Better user experience with stable UI
+- Efficient resource usage
+
+#### State Management Patterns
+
+Helper functions manage per-image states:
+
+```typescript
+// Update specific image's generate state
+const updateImageGenerateState = (imagePath: string, updates: Partial<GenerateImageState>) => {
+  setGenerateImageStates(prev => ({
+    ...prev,
+    [imagePath]: {
+      ...prev[imagePath],
+      ...updates
+    }
+  }));
+};
+
+// Get or initialize image state
+const getImageGenerateState = (imagePath: string): GenerateImageState => {
+  return generateImageStates[imagePath] || {
+    conversationId: '',
+    isGenerating: false,
+    isExtracting: false,
+    extractedImages: []
+  };
+};
+```
+
 ### Image Path Handling
 
 The application maintains a clear distinction between web paths and file system paths:

@@ -135,9 +135,14 @@ MDX files contain frontmatter with fields such as:
 ### Image Replacement
 1. User identifies an image to replace
 2. User can click on the image to zoom and inspect details
-3. User drags and drops a new image or selects from file browser
-4. Application replaces the image file in the repository
-5. Application updates image references if needed
+3. User has multiple replacement options:
+   - Drag and drop a new image
+   - Import from URL
+   - Generate with AI and extract from conversation
+4. Multiple images can have their action containers open simultaneously (independent state)
+5. Application replaces the image file in the repository
+6. Only the modified image refreshes automatically - no flickering of other images
+7. Application updates image references if needed
 
 ### Image Prompt Generation
 1. User edits a post in the editor

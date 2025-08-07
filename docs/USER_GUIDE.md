@@ -233,17 +233,22 @@ The Images tab shows:
 - Hero image (if present) - displayed at the same size as content images for consistent UI
 - All images used in the post content
 
-### Replacing Images
+### Managing Images
 
-You can replace images in multiple ways:
+The Images tab provides comprehensive image management features with advanced state management:
 
-#### Method 1: Upload from your computer
+**Key Features:**
+- **Independent Action States**: Each image has its own independent action containers (Replace, Generate, Stamp) that can be open simultaneously without affecting other images
+- **Smart Image Refresh**: Only the specific image being modified refreshes after actions - other images remain stable with no flickering
+- **Multiple Workflows**: Work on multiple image operations simultaneously across different images
+
+#### Method 1: Drag and Drop
 
 1. Go to the Images tab
 2. Click "Replace Image" on the image you want to replace
-3. A replacement interface will appear directly below the selected image
-4. Drag and drop a new image or click to select one from your computer
-5. The image will be uploaded and replaced in the post
+3. Drag and drop a new image file onto the drop zone
+4. The system will automatically upload and replace the image
+5. Only this specific image will refresh to show the updated version
 
 #### Method 2: Import from URL
 
@@ -257,38 +262,31 @@ You can replace images in multiple ways:
 
 The application includes a powerful AI image generation workflow:
 
-1. **Generate Image**: Click "Generate Image" on any image you want to replace with AI-generated content
-2. **Step 1 - Generate Prompt**: The system automatically creates an appropriate prompt:
-   - For hero images: Uses hero-specific system prompts + post content
-   - For in-blog images: Uses in-blog system prompts + content with placeholder instructions ("CREATE IMAGE FOR PLACEHOLDER N NOW")
-3. **Step 2 - Send to AI Service**: Click "Generate Image" to send the prompt to the AI service and receive a conversation ID
-4. **Step 3 - Manage Conversation**: 
-   - View and edit the conversation ID (automatically saved with 1-hour expiry)
-   - Set auth token (defaults to "XYZ")
-   - Extract images using "Extract Images" button
-   - Delete conversations when done with "Delete Conversation" button
-5. **Step 4 - Replace Image**: Each extracted image shows:
-   - Alt text and download URL with copy-to-clipboard functionality
-   - "Replace" button for one-click image replacement
-
-**AI Generation Features:**
-- **Session Storage**: Conversation IDs persist per image for 1 hour
-- **Smart Prompts**: Automatically determines hero vs in-blog context
-- **Placeholder Targeting**: In-blog images get specific placeholder instructions (1, 2, 3, etc.)
-- **One-Click Replacement**: Generated images can replace existing ones instantly
-- **Conversation Cleanup**: Delete API conversations and clear local storage
+1. Click the "Generate Image" button on any image
+2. The system automatically generates a contextually appropriate prompt (different for hero vs in-blog images)
+3. An API call is made to generate AI images
+4. Enter the conversation ID from the API response
+5. Click "Extract Images" to retrieve generated options
+6. Review the generated images with their alt text and download URLs
+7. Use the action buttons for each extracted image:
+   - **Replace**: Instantly swap the current image with the generated one
+   - **Open**: View the generated image in a new browser tab for full preview
+   - **Copy**: Copy the image URL to clipboard
+8. The conversation ID persists for 1 hour for convenience
+9. After replacement, only the affected image refreshes automatically
 
 ### Stamping Images with Logos
 
 The application allows you to overlay repository logos onto your images:
 
-1. Go to the Images tab
-2. Click "Stamp Image" on the image you want to add a logo to
-3. A stamping interface will appear below the selected image
-4. From the dropdown, select the repository whose logo you want to use (each repo should have a logo.png in its root)
-5. Click the "Stamp Now" button
-6. The system will overlay the selected repository's logo onto the bottom-right corner of your image
-7. The original image will be replaced with the stamped version
+1. Navigate to the Images tab in the post editor
+2. Find the image you want to stamp
+3. Click the "Stamp Image" button under the image
+4. Select a repository from the dropdown (each repository should have a logo.png file)
+5. Click the "Stamp Logo" button
+6. The system will overlay the repository logo onto the bottom-right corner of your image
+7. The stamped image automatically refreshes in place - no manual page refresh needed
+8. Other images remain unaffected while only the stamped image updates
 
 **Note:** For best results, repository logos should have a transparent background. Logos will be resized to 128x128 pixels and placed at the bottom-right with proper padding.
 
@@ -296,14 +294,15 @@ The application allows you to overlay repository logos onto your images:
 
 The application allows you to overlay date stamps onto your images with professional styling:
 
-1. Go to the Images tab
-2. Click "Stamp Date" on the image you want to add a date to
-3. A date stamping interface will appear below the selected image
-4. Enter your desired date in DD/MM/YYYY format (e.g., "07/06/2025")
+1. Navigate to the Images tab in the post editor
+2. Find the image you want to date stamp
+3. Click the "Stamp Date" button under the image
+4. A date input field will appear where you can modify the date if needed (format: DD/MM/YYYY)
 5. The date input field is pre-populated with today's date for convenience
 6. Click the "Stamp Date" button
 7. The system will overlay the date onto the top-right corner of your image with a semi-transparent background
-8. The original image will be replaced with the date-stamped version
+8. The date-stamped image automatically refreshes in place - no manual page refresh needed
+9. Other images remain unaffected while only the stamped image updates
 
 **Date Stamp Features:**
 - **Responsive Design**: Font size and spacing automatically adjust based on image dimensions (32-48px range)
