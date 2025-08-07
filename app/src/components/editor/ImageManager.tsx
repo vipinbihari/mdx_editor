@@ -37,31 +37,37 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   onImageReplace,
   post,
 }) => {
-  const [activeImage, setActiveImage] = useState<BlogImage | null>(null);
-  const [stampImage, setStampImage] = useState<BlogImage | null>(null);
-  const [stampDateImage, setStampDateImage] = useState<BlogImage | null>(null);
+  // Per-image action container states - allows multiple images to have actions open simultaneously
+  const [activeImages, setActiveImages] = useState<Record<string, boolean>>({});
+  const [stampImages, setStampImages] = useState<Record<string, boolean>>({});
+  const [stampDateImages, setStampDateImages] = useState<Record<string, boolean>>({});
+  const [generateImages, setGenerateImages] = useState<Record<string, boolean>>({});
+  
+  // Per-image state data
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  const [isLoadingUrls, setIsLoadingUrls] = useState<Record<string, boolean>>({});
+  const [selectedLogoRepos, setSelectedLogoRepos] = useState<Record<string, string>>({});
+  const [isStampingImages, setIsStampingImages] = useState<Record<string, boolean>>({});
+  const [isDateStampingImages, setIsDateStampingImages] = useState<Record<string, boolean>>({});
+  const [datesToStamp, setDatesToStamp] = useState<Record<string, string>>({});
+  
+  // Per-image Generate Image feature state
+  const [isGeneratingImages, setIsGeneratingImages] = useState<Record<string, boolean>>({});
+  const [conversationIds, setConversationIds] = useState<Record<string, string>>({});
+  const [isExtractingImages, setIsExtractingImages] = useState<Record<string, boolean>>({});
+  const [extractedImagesData, setExtractedImagesData] = useState<Record<string, Array<{altText: string, downloadUrl: string}>>>({});
+  const [authTokens, setAuthTokens] = useState<Record<string, string>>({});
+  const [isDeletingConversations, setIsDeletingConversations] = useState<Record<string, boolean>>({});
+  
+  // Global states that remain single-value
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState<string>('');
-  const [isLoadingUrl, setIsLoadingUrl] = useState<boolean>(false);
   const [zoomModalOpen, setZoomModalOpen] = useState<boolean>(false);
   const [zoomedImageSrc, setZoomedImageSrc] = useState<string>('');
   const [zoomedImageAlt, setZoomedImageAlt] = useState<string>('');
   const [repositories, setRepositories] = useState<Repository[]>([]);
-  const [selectedLogoRepo, setSelectedLogoRepo] = useState<string>('');
-  const [isStamping, setIsStamping] = useState<boolean>(false);
-  const [isDateStamping, setIsDateStamping] = useState<boolean>(false);
-  const [dateToStamp, setDateToStamp] = useState<string>('');
-  const imageUrlInputRef = useRef<HTMLInputElement>(null);
-  
-  // Generate Image feature state
-  const [generateImage, setGenerateImage] = useState<BlogImage | null>(null);
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [conversationId, setConversationId] = useState<string>('');
-  const [isExtracting, setIsExtracting] = useState<boolean>(false);
-  const [extractedImages, setExtractedImages] = useState<Array<{altText: string, downloadUrl: string}>>([]);
-  const [authToken, setAuthToken] = useState<string>('XYZ');
   const [copiedText, setCopiedText] = useState<string>('');
-  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [imageCacheBusters, setImageCacheBusters] = useState<Record<string, number>>({});
+  const imageUrlInputRef = useRef<HTMLInputElement>(null);
   
   // Session storage helper functions
   const getStorageKey = (image: BlogImage) => {
@@ -108,9 +114,69 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     }
   };
   
-  // Use a consistent timestamp for the entire component lifecycle to avoid unnecessary refetching
-  const cacheBuster = useRef(Date.now()).current;
+  // Helper functions for per-image state management
+  const setImageAction = (
+    imagePath: string,
+    value: boolean,
+    setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
+  ) => {
+    setter(prev => ({
+      ...prev,
+      [imagePath]: value
+    }));
+  };
+
+  const setImageData = <T,>(
+    imagePath: string,
+    value: T,
+    setter: React.Dispatch<React.SetStateAction<Record<string, T>>>
+  ) => {
+    setter((prev) => ({
+      ...prev,
+      [imagePath]: value
+    }));
+  };
+
+  const clearImageAction = (
+    imagePath: string,
+    setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>
+  ) => {
+    setter(prev => {
+      const newState = { ...prev };
+      delete newState[imagePath];
+      return newState;
+    });
+  };
+
+  // Helper function to refresh images after operations
+  const refreshImage = (imagePath: string) => {
+    setImageCacheBusters(prev => ({
+      ...prev,
+      [imagePath]: Date.now()
+    }));
+  };
   
+  const getCacheBuster = (imagePath: string): number => {
+    // Always use the stored cache buster if it exists
+    // This prevents unnecessary reloads when component re-renders
+    return imageCacheBusters[imagePath] || 0;
+  };
+  
+  // Initialize cache busters for all images to prevent unnecessary reloads
+  useEffect(() => {
+    setImageCacheBusters(prev => {
+      const newBusters = { ...prev };
+      const timestamp = Date.now();
+      images.forEach(image => {
+        // Only set if not already set, to preserve existing cache busters
+        if (!newBusters[image.path]) {
+          newBusters[image.path] = timestamp;
+        }
+      });
+      return newBusters;
+    });
+  }, [images]);
+
   // Fetch repositories for logo selection
   useEffect(() => {
     const fetchRepositories = async () => {
@@ -119,8 +185,6 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         const data = await response.json();
         if (data.repositories) {
           setRepositories(data.repositories);
-          // Set the selected repository to match the current repository
-          setSelectedLogoRepo(repoName); 
         }
       } catch (error) {
         console.error('Error fetching repositories:', error);
@@ -130,29 +194,47 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     
     fetchRepositories();
     
-    // Set default date from post frontmatter if available
+    // Initialize default dates for all images from post frontmatter if available
     if (post?.frontmatter?.date) {
-      // Use the shared utility function for consistent date formatting
-      setDateToStamp(formatDateForDisplay(post.frontmatter.date));
+      const formattedDate = formatDateForDisplay(post.frontmatter.date);
+      images.forEach(image => {
+        setImageData(image.path, formattedDate, setDatesToStamp);
+      });
     }
-  }, [repoName, post]);
+
+    // Initialize default logo repos for all images
+    images.forEach(image => {
+      setImageData(image.path, repoName, setSelectedLogoRepos);
+    });
+  }, [repoName, post, images]);
 
   // Filter images into hero and content images
   const heroImage = images.find((img) => img.inHero);
   const contentImages = images.filter((img) => !img.inHero);
 
-  // Setup dropzone for image replacement
+  // Setup dropzone for image replacement - now handles per-image state
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       'image/*': ['.png', '.gif', '.jpeg', '.jpg']
     },
     multiple: false,
     onDrop: (acceptedFiles) => {
-      if (activeImage && acceptedFiles.length > 0) {
-        // Pass the new image file to the parent component for handling
-        onImageReplace(activeImage, acceptedFiles[0]);
-        setActiveImage(null);
-        setUploadError(null);
+      // Find which image is currently active for replacement
+      const activeImagePath = Object.keys(activeImages).find(path => activeImages[path]);
+      if (activeImagePath && acceptedFiles.length > 0) {
+        const activeImage = images.find(img => img.path === activeImagePath);
+        if (activeImage) {
+          // Pass the new image file to the parent component for handling
+          onImageReplace(activeImage, acceptedFiles[0]);
+          clearImageAction(activeImagePath, setActiveImages);
+          setUploadError(null);
+          
+          // Refresh image to show the updated image
+          // Small delay to allow the parent component to process the replacement
+          setTimeout(() => {
+            refreshImage(activeImagePath);
+          }, 500);
+        }
       }
     },
     onDropRejected: () => {
@@ -160,14 +242,15 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     }
   });
 
-  // Handle image stamping with logo
-  const handleStampImage = async () => {
-    if (!stampImage || !selectedLogoRepo) {
-      setUploadError('Please select an image and a logo repository');
+  // Handle image stamping with logo - now accepts image parameter
+  const handleStampImage = async (image: BlogImage) => {
+    const selectedLogoRepo = selectedLogoRepos[image.path];
+    if (!selectedLogoRepo) {
+      setUploadError('Please select a logo repository');
       return;
     }
     
-    setIsStamping(true);
+    setImageAction(image.path, true, setIsStampingImages);
     setUploadError(null);
     
     try {
@@ -178,7 +261,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         },
         body: JSON.stringify({
           repoName,
-          selectedImagePath: stampImage.path,
+          selectedImagePath: image.path,
           selectedLogoRepo,
         }),
       });
@@ -189,26 +272,17 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         throw new Error(result.error || 'Failed to stamp image');
       }
       
-      // Reset UI state
-      setStampImage(null);
+      // Reset UI state for this image
+      clearImageAction(image.path, setStampImages);
       
-      // Create a new cache buster to force reload only this specific image
-      const newCacheBuster = Date.now();
-      
-      // Find and update the image element to refresh it
-      const imageElement = document.querySelector(`img[src^="/api/image?repoName=${repoName}&imagePath=${stampImage.path}"]`);
-      if (imageElement) {
-        // Update the src with a new timestamp to force reload
-        const currentSrc = imageElement.getAttribute('src');
-        const newSrc = currentSrc?.split('&t=')[0] + `&t=${newCacheBuster}`;
-        imageElement.setAttribute('src', newSrc);
-      }
+      // Refresh image to show the updated stamp
+      refreshImage(image.path);
       
     } catch (error) {
       console.error('Error stamping image:', error);
       setUploadError(`Failed to stamp image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsStamping(false);
+      setImageAction(image.path, false, setIsStampingImages);
     }
   };
   
@@ -257,15 +331,13 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     }
   };
   
-  // Handle image generation
-  const handleGenerateImage = async () => {
-    if (!generateImage) return;
-    
-    setIsGenerating(true);
+  // Handle image generation - now accepts image parameter
+  const handleGenerateImage = async (image: BlogImage) => {
+    setImageAction(image.path, true, setIsGeneratingImages);
     setUploadError(null);
     
     try {
-      const prompt = await generatePrompt(generateImage);
+      const prompt = await generatePrompt(image);
       
       const response = await fetch(`${API_BASE_URL}/send-message`, {
         method: 'POST',
@@ -281,9 +353,9 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         const data = await response.json();
         if (data.success && data.conversation_id) {
           const newConvId = data.conversation_id;
-          setConversationId(newConvId);
+          setImageData(image.path, newConvId, setConversationIds);
           // Save to session storage
-          saveConversationId(generateImage, newConvId);
+          saveConversationId(image, newConvId);
         } else {
           setUploadError('Failed to generate image: Invalid response');
         }
@@ -294,24 +366,26 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       console.error('Error generating image:', error);
       setUploadError('Failed to generate image: Network error');
     } finally {
-      setIsGenerating(false);
+      setImageAction(image.path, false, setIsGeneratingImages);
     }
   };
   
-  // Handle manual conversation ID changes
+  // Handle manual conversation ID changes - now uses per-image state
   const handleConversationIdChange = (value: string, image: BlogImage) => {
-    setConversationId(value);
+    setImageData(image.path, value, setConversationIds);
     // Save to session storage when user manually enters a conversation ID
     if (value.trim()) {
       saveConversationId(image, value.trim());
     }
   };
   
-  // Handle image extraction
-  const handleExtractImage = async () => {
+  // Handle image extraction - now accepts image parameter
+  const handleExtractImage = async (image: BlogImage) => {
+    const conversationId = conversationIds[image.path];
+    const authToken = authTokens[image.path] || 'XYZ';
     if (!conversationId) return;
     
-    setIsExtracting(true);
+    setImageAction(image.path, true, setIsExtractingImages);
     setUploadError(null);
     
     try {
@@ -321,11 +395,11 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.images && data.images.length > 0) {
-          const images = data.images.map((img: ApiImageResponse) => ({
+          const extractedImages = data.images.map((img: ApiImageResponse) => ({
             altText: img.alt_text || '',
             downloadUrl: img.download_url || ''
           }));
-          setExtractedImages(images);
+          setImageData(image.path, extractedImages, setExtractedImagesData);
         } else {
           setUploadError('No images found in conversation');
         }
@@ -336,15 +410,17 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       console.error('Error extracting images:', error);
       setUploadError('Failed to extract images: Network error');
     } finally {
-      setIsExtracting(false);
+      setImageAction(image.path, false, setIsExtractingImages);
     }
   };
   
-  // Handle conversation deletion
-  const handleDeleteConversation = async () => {
-    if (!conversationId || !generateImage) return;
+  // Handle conversation deletion - now accepts image parameter
+  const handleDeleteConversation = async (image: BlogImage) => {
+    const conversationId = conversationIds[image.path];
+    const authToken = authTokens[image.path] || 'XYZ';
+    if (!conversationId) return;
     
-    setIsDeleting(true);
+    setImageAction(image.path, true, setIsDeletingConversations);
     setUploadError(null);
     
     try {
@@ -355,11 +431,11 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       
       if (response.ok) {
         // Remove from session storage
-        removeConversationId(generateImage);
+        removeConversationId(image);
         
-        // Reset UI state
-        setConversationId('');
-        setExtractedImages([]);
+        // Reset UI state for this image
+        setImageData(image.path, '' as string, setConversationIds);
+        setImageData(image.path, [] as Array<{altText: string, downloadUrl: string}>, setExtractedImagesData);
         
         // Show success (could add a success message if needed)
         console.log('Conversation deleted successfully');
@@ -370,15 +446,15 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       console.error('Error deleting conversation:', error);
       setUploadError('Failed to delete conversation: Network error');
     } finally {
-      setIsDeleting(false);
+      setImageAction(image.path, false, setIsDeletingConversations);
     }
   };
   
   // Handle direct image replacement from extracted URL using optimized endpoint
-  const handleExtractedImageReplace = async (downloadUrl: string) => {
-    if (!generateImage || !downloadUrl) return;
+  const handleExtractedImageReplace = async (image: BlogImage, downloadUrl: string) => {
+    if (!downloadUrl) return;
     
-    setIsExtracting(true);
+    setImageAction(image.path, true, setIsExtractingImages);
     setUploadError(null);
     
     try {
@@ -392,7 +468,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
           imageUrl: downloadUrl,
           repoName,
           slug: post?.frontmatter?.slug || '',
-          oldImagePath: generateImage.path,
+          oldImagePath: image.path,
         }),
       });
       
@@ -404,26 +480,16 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       const result = await response.json();
       
       if (result.success) {
-        // Force refresh the image cache by updating existing image elements
-        const newCacheBuster = Date.now();
-        
-        // Update any existing image elements to force reload
-        const imageElements = document.querySelectorAll(`img[src*="${generateImage.path}"]`);
-        imageElements.forEach(img => {
-          const currentSrc = img.getAttribute('src');
-          if (currentSrc) {
-            const newSrc = currentSrc.split('&t=')[0] + `&t=${newCacheBuster}`;
-            img.setAttribute('src', newSrc);
-          }
-        });
-        
         console.log(`✅ Generated image successfully replaced: ${result.message}`);
         
-        // Reset UI state - close the generate image panel
-        setGenerateImage(null);
-        setConversationId('');
-        setExtractedImages([]);
-        setAuthToken('XYZ'); // Reset to default
+        // Reset UI state - close the generate image panel for this image
+        clearImageAction(image.path, setGenerateImages);
+        setImageData(image.path, '' as string, setConversationIds);
+        setImageData(image.path, [] as Array<{altText: string, downloadUrl: string}>, setExtractedImagesData);
+        setImageData(image.path, 'XYZ' as string, setAuthTokens); // Reset to default
+        
+        // Refresh image to show the updated image
+        refreshImage(image.path);
       } else {
         throw new Error(result.error || 'Unexpected response format');
       }
@@ -432,7 +498,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       console.error('Error replacing image from extracted URL:', error);
       setUploadError(`Failed to replace image from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsExtracting(false);
+      setImageAction(image.path, false, setIsExtractingImages);
     }
   };
 
@@ -475,14 +541,15 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     }
   };
 
-  // Handle image stamping with date
-  const handleStampDate = async () => {
-    if (!stampDateImage || !dateToStamp) {
-      setUploadError('Please select an image and provide a date');
+  // Handle image stamping with date - now accepts image parameter
+  const handleStampDate = async (image: BlogImage) => {
+    const dateToStamp = datesToStamp[image.path];
+    if (!dateToStamp) {
+      setUploadError('Please provide a date');
       return;
     }
     
-    setIsDateStamping(true);
+    setImageAction(image.path, true, setIsDateStampingImages);
     setUploadError(null);
     
     try {
@@ -493,7 +560,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         },
         body: JSON.stringify({
           repoName,
-          selectedImagePath: stampDateImage.path,
+          selectedImagePath: image.path,
           dateText: dateToStamp,
         }),
       });
@@ -504,34 +571,26 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         throw new Error(result.error || 'Failed to stamp date on image');
       }
       
-      // Reset UI state
-      setStampDateImage(null);
+      // Reset UI state for this image
+      clearImageAction(image.path, setStampDateImages);
       
-      // Create a new cache buster to force reload only this specific image
-      const newCacheBuster = Date.now();
-      
-      // Find and update the image element to refresh it
-      const imageElement = document.querySelector(`img[src^="/api/image?repoName=${repoName}&imagePath=${stampDateImage.path}"]`);
-      if (imageElement) {
-        // Update the src with a new timestamp to force reload
-        const currentSrc = imageElement.getAttribute('src');
-        const newSrc = currentSrc?.split('&t=')[0] + `&t=${newCacheBuster}`;
-        imageElement.setAttribute('src', newSrc);
-      }
+      // Refresh image to show the updated stamp date
+      refreshImage(image.path);
       
     } catch (error) {
       console.error('Error stamping date on image:', error);
       setUploadError(`Failed to stamp date on image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsDateStamping(false);
+      setImageAction(image.path, false, setIsDateStampingImages);
     }
   };
   
   // Handle URL image replacement using optimized single-call endpoint
-  const handleUrlImageReplace = async () => {
-    if (!activeImage || !imageUrl) return;
+  const handleUrlImageReplace = async (image: BlogImage) => {
+    const imageUrl = imageUrls[image.path];
+    if (!imageUrl) return;
     
-    setIsLoadingUrl(true);
+    setImageAction(image.path, true, setIsLoadingUrls);
     setUploadError(null);
     
     try {
@@ -545,7 +604,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
           imageUrl,
           repoName,
           slug: post?.frontmatter?.slug || '',
-          oldImagePath: activeImage.path,
+          oldImagePath: image.path,
         }),
       });
       
@@ -557,24 +616,14 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       const result = await response.json();
       
       if (result.success) {
-        // Force refresh the image cache by updating existing image elements
-        const newCacheBuster = Date.now();
-        
-        // Update any existing image elements to force reload
-        const imageElements = document.querySelectorAll(`img[src*="${activeImage.path}"]`);
-        imageElements.forEach(img => {
-          const currentSrc = img.getAttribute('src');
-          if (currentSrc) {
-            const newSrc = currentSrc.split('&t=')[0] + `&t=${newCacheBuster}`;
-            img.setAttribute('src', newSrc);
-          }
-        });
-        
         console.log(`✅ Image successfully replaced: ${result.message}`);
         
-        // Reset UI state
-        setImageUrl('');
-        setActiveImage(null);
+        // Reset UI state for this image
+        setImageData(image.path, '' as string, setImageUrls);
+        clearImageAction(image.path, setActiveImages);
+        
+        // Refresh image to show the updated image
+        refreshImage(image.path);
       } else {
         throw new Error(result.error || 'Unexpected response format');
       }
@@ -582,12 +631,15 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       console.error('Error replacing image from URL:', error);
       setUploadError(`Failed to replace image from URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsLoadingUrl(false);
+      setImageAction(image.path, false, setIsLoadingUrls);
     }
   };
   
   // Helper to render image stamping UI
   const renderStampingInterface = (image: BlogImage) => {
+    const selectedLogoRepo = selectedLogoRepos[image.path] || repoName;
+    const isStamping = isStampingImages[image.path] || false;
+    
     return (
       <div className="mt-2 mb-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
         <h3 className="font-medium text-primary-800 dark:text-primary-300 mb-3">
@@ -600,7 +652,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
           </label>
           <select
             value={selectedLogoRepo}
-            onChange={(e) => setSelectedLogoRepo(e.target.value)}
+            onChange={(e) => setImageData(image.path, e.target.value, setSelectedLogoRepos)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-600"
           >
             {repositories.map((repo) => (
@@ -616,7 +668,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         
         <div className="flex justify-end">
           <button
-            onClick={handleStampImage}
+            onClick={() => handleStampImage(image)}
             disabled={isStamping || !selectedLogoRepo}
             className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-primary-700 dark:hover:bg-primary-600 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -629,6 +681,9 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   
   // Helper to render date stamping UI
   const renderDateStampingInterface = (image: BlogImage) => {
+    const dateToStamp = datesToStamp[image.path] || '';
+    const isDateStamping = isDateStampingImages[image.path] || false;
+    
     return (
       <div className="mt-2 mb-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
         <h3 className="font-medium text-primary-800 dark:text-primary-300 mb-3">
@@ -642,7 +697,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
           <input
             type="text"
             value={dateToStamp}
-            onChange={(e) => setDateToStamp(e.target.value)}
+            onChange={(e) => setImageData(image.path, e.target.value, setDatesToStamp)}
             placeholder="DD/MM/YYYY"
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-600"
           />
@@ -653,7 +708,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         
         <div className="flex justify-end">
           <button
-            onClick={handleStampDate}
+            onClick={() => handleStampDate(image)}
             disabled={isDateStamping || !dateToStamp}
             className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-primary-700 dark:hover:bg-primary-600 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -666,7 +721,13 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   
   // Helper to render image generation UI
   const renderImageGeneration = (image: BlogImage) => {
-    const isSelected = generateImage?.path === image.path;
+    const isSelected = generateImages[image.path] || false;
+    const conversationId = conversationIds[image.path] || '';
+    const isGenerating = isGeneratingImages[image.path] || false;
+    const isExtracting = isExtractingImages[image.path] || false;
+    const isDeleting = isDeletingConversations[image.path] || false;
+    const authToken = authTokens[image.path] || 'XYZ';
+    const extractedImages = extractedImagesData[image.path] || [];
     
     if (!isSelected) return null;
     
@@ -683,7 +744,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
               Step 1: Generate AI prompt and send to image generation service
             </p>
             <button
-              onClick={handleGenerateImage}
+              onClick={() => handleGenerateImage(image)}
               disabled={isGenerating}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
@@ -726,14 +787,14 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                 <input
                   type="text"
                   value={authToken}
-                  onChange={(e) => setAuthToken(e.target.value)}
+                  onChange={(e) => setImageData(image.path, e.target.value, setAuthTokens)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200"
                   placeholder="Auth Token (optional)"
                 />
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={handleExtractImage}
+                  onClick={() => handleExtractImage(image)}
                   disabled={isExtracting || !conversationId.trim()}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
@@ -751,7 +812,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                 </button>
                 
                 <button
-                  onClick={handleDeleteConversation}
+                  onClick={() => handleDeleteConversation(image)}
                   disabled={isDeleting || !conversationId.trim()}
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   title="Delete this conversation and remove from storage"
@@ -828,62 +889,72 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Download URL:
                         </label>
-                        <div className="flex flex-col sm:flex-row gap-1">
+                        <div className="flex flex-col gap-2">
                           <input
                             type="text"
                             value={img.downloadUrl}
                             readOnly
-                            className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md sm:rounded-l-md sm:rounded-r-none bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                            className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 overflow-hidden text-ellipsis"
                           />
-                          <div className="flex gap-0">
+                          <div className="flex gap-1 flex-wrap">
                             <button
-                              onClick={() => handleExtractedImageReplace(img.downloadUrl)}
+                              onClick={() => handleExtractedImageReplace(image, img.downloadUrl)}
                               disabled={isExtracting}
-                              className={`flex-1 sm:flex-none px-2 sm:px-3 py-1 text-xs font-semibold border border-blue-300 dark:border-blue-500 text-white shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-l-md sm:rounded-none ${
+                              className={`flex-1 min-w-[80px] px-2 py-1 text-xs font-semibold border border-blue-300 dark:border-blue-500 text-white shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-md ${
                                 isExtracting 
                                   ? 'bg-blue-400 dark:bg-blue-600 animate-pulse' 
-                                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 transform hover:scale-105'
+                                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 hover:scale-105'
                               }`}
                               title="Replace the current image with this generated image"
                             >
                               {isExtracting ? (
                                 <span className="flex items-center justify-center">
-                                  <svg className="animate-spin h-3 w-3 sm:mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <svg className="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                   </svg>
-                                  <span className="hidden sm:inline ml-1">Replacing</span>
+                                  <span>Replacing</span>
                                 </span>
                               ) : (
                                 <span className="flex items-center justify-center">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                   </svg>
-                                  <span className="hidden sm:inline ml-1">Replace</span>
+                                  <span>Replace</span>
                                 </span>
                               )}
                             </button>
                             <button
+                              onClick={() => window.open(img.downloadUrl, '_blank', 'noopener,noreferrer')}
+                              className="flex-1 min-w-[80px] px-2 py-1 text-xs font-semibold border border-teal-300 dark:border-teal-500 text-white shadow-sm transition-all duration-200 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 dark:from-teal-600 dark:to-teal-700 dark:hover:from-teal-700 dark:hover:to-teal-800 hover:scale-105 flex items-center justify-center rounded-md"
+                              title="Open image in new tab"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                              <span>Open</span>
+                            </button>
+                            <button
                               onClick={() => handleCopyToClipboard(img.downloadUrl, `url-${index}`)}
-                              className={`flex-1 sm:flex-none px-2 py-1 text-xs font-semibold border border-purple-300 dark:border-purple-500 text-white shadow-sm transition-all duration-200 rounded-r-md flex items-center justify-center ${
+                              className={`flex-1 min-w-[80px] px-2 py-1 text-xs font-semibold border border-purple-300 dark:border-purple-500 text-white shadow-sm transition-all duration-200 rounded-md flex items-center justify-center ${
                                 copiedText === `url-${index}` 
                                   ? 'bg-green-500 dark:bg-green-600 border-green-400 dark:border-green-500' 
-                                  : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 dark:from-purple-600 dark:to-purple-700 dark:hover:from-purple-700 dark:hover:to-purple-800 transform hover:scale-105'
+                                  : 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 dark:from-purple-600 dark:to-purple-700 dark:hover:from-purple-700 dark:hover:to-purple-800 hover:scale-105'
                               }`}
                             >
                               {copiedText === `url-${index}` ? (
                                 <span className="flex items-center justify-center">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                   </svg>
-                                  <span className="hidden sm:inline">Copied</span>
+                                  <span>Copied</span>
                                 </span>
                               ) : (
                                 <span className="flex items-center justify-center">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                   </svg>
-                                  <span className="hidden sm:inline">Copy</span>
+                                  <span>Copy</span>
                                 </span>
                               )}
                             </button>
@@ -903,6 +974,9 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   
   // Helper to render image replacement UI for a specific image
   const renderImageReplacement = (image: BlogImage) => {
+    const imageUrl = imageUrls[image.path] || '';
+    const isLoadingUrl = isLoadingUrls[image.path] || false;
+    
     return (
       <div className="mt-2 mb-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4">
         <h3 className="font-medium text-primary-800 dark:text-primary-300 mb-3">
@@ -954,11 +1028,11 @@ const ImageManager: React.FC<ImageManagerProps> = ({
               type="text"
               placeholder="https://example.com/image.jpg"
               value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
+              onChange={(e) => setImageData(image.path, e.target.value, setImageUrls)}
               className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-600 w-full min-w-0"
             />
             <button
-              onClick={handleUrlImageReplace}
+              onClick={() => handleUrlImageReplace(image)}
               disabled={!imageUrl || isLoadingUrl}
               className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-primary-700 dark:hover:bg-primary-600 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto flex-shrink-0"
             >
@@ -975,7 +1049,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     // Extract just the filename from the path
     const filename = image.path.split('/').pop() || image.path;
     
-    const isSelected = activeImage?.path === image.path;
+    const isSelected = activeImages[image.path] || false;
     
     return (
       <div 
@@ -989,13 +1063,13 @@ const ImageManager: React.FC<ImageManagerProps> = ({
           style={{ cursor: 'zoom-in' }}
           onClick={() => {
             // Open zoom modal
-            setZoomedImageSrc(`/api/image?repoName=${repoName}&imagePath=${image.path}&t=${cacheBuster}`);
+            setZoomedImageSrc(`/api/image?repoName=${repoName}&imagePath=${image.path}&t=${getCacheBuster(image.path)}`);
             setZoomedImageAlt(image.altText || filename);
             setZoomModalOpen(true);
           }}
         >
           <Image 
-            src={`/api/image?repoName=${repoName}&imagePath=${image.path}&t=${cacheBuster}`} 
+            src={`/api/image?repoName=${repoName}&imagePath=${image.path}&t=${getCacheBuster(image.path)}`} 
             alt={image.altText || filename} 
             width={300}
             height={200}
@@ -1021,13 +1095,14 @@ const ImageManager: React.FC<ImageManagerProps> = ({
               <button
                 onClick={() => {
                   // Toggle replacement state for this image
-                  const isSelected = activeImage?.path === image.path;
-                  setActiveImage(isSelected ? null : image);
-                  setStampImage(null);
-                  setStampDateImage(null);
-                  setGenerateImage(null);
+                  const isCurrentlyActive = activeImages[image.path] || false;
+                  setImageData(image.path, !isCurrentlyActive, setActiveImages);
+                  // Clear other states for this image
+                  setImageData(image.path, false as boolean, setStampImages);
+                  setImageData(image.path, false as boolean, setStampDateImages);
+                  setImageData(image.path, false as boolean, setGenerateImages);
                   setUploadError(null);
-                  setImageUrl('');
+                  setImageData(image.path, '' as string, setImageUrls);
                 }}
                 className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
               >
@@ -1037,51 +1112,56 @@ const ImageManager: React.FC<ImageManagerProps> = ({
               <button
                 onClick={() => {
                   // Toggle generate image state for this image
-                  const isSelected = generateImage?.path === image.path;
-                  setGenerateImage(isSelected ? null : image);
-                  setActiveImage(null);
-                  setStampImage(null);
-                  setStampDateImage(null);
+                  const isCurrentlyGenerating = generateImages[image.path] || false;
+                  setImageData(image.path, !isCurrentlyGenerating, setGenerateImages);
+                  // Clear other states for this image
+                  setImageData(image.path, false as boolean, setActiveImages);
+                  setImageData(image.path, false as boolean, setStampImages);
+                  setImageData(image.path, false as boolean, setStampDateImages);
                   setUploadError(null);
                   // Load conversation ID from storage or reset when switching images
-                  if (!isSelected) {
+                  if (!isCurrentlyGenerating) {
                     const storedConvId = loadConversationId(image);
-                    setConversationId(storedConvId);
-                    setExtractedImages([]);
-                    setAuthToken('XYZ'); // Always default to XYZ
+                    setImageData(image.path, storedConvId, setConversationIds);
+                    setImageData(image.path, [] as Array<{altText: string, downloadUrl: string}>, setExtractedImagesData);
+                    setImageData(image.path, 'XYZ' as string, setAuthTokens); // Always default to XYZ
                   }
                 }}
                 className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
               >
-                {generateImage?.path === image.path ? 'Cancel' : 'Generate Image'}
+                {generateImages[image.path] ? 'Cancel' : 'Generate Image'}
               </button>
               
               <button
                 onClick={() => {
                   // Toggle stamp state for this image
-                  setStampImage(stampImage?.path === image.path ? null : image);
-                  setStampDateImage(null);
-                  setActiveImage(null);
-                  setGenerateImage(null);
+                  const isCurrentlyStamping = stampImages[image.path] || false;
+                  setImageData(image.path, !isCurrentlyStamping, setStampImages);
+                  // Clear other states for this image
+                  setImageData(image.path, false as boolean, setStampDateImages);
+                  setImageData(image.path, false as boolean, setActiveImages);
+                  setImageData(image.path, false as boolean, setGenerateImages);
                   setUploadError(null);
                 }}
                 className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
               >
-                {stampImage?.path === image.path ? 'Cancel' : 'Stamp Image'}
+                {stampImages[image.path] ? 'Cancel' : 'Stamp Image'}
               </button>
               
               <button
                 onClick={() => {
                   // Toggle date stamp state for this image
-                  setStampDateImage(stampDateImage?.path === image.path ? null : image);
-                  setStampImage(null);
-                  setActiveImage(null);
-                  setGenerateImage(null);
+                  const isCurrentlyDateStamping = stampDateImages[image.path] || false;
+                  setImageData(image.path, !isCurrentlyDateStamping, setStampDateImages);
+                  // Clear other states for this image
+                  setImageData(image.path, false as boolean, setStampImages);
+                  setImageData(image.path, false as boolean, setActiveImages);
+                  setImageData(image.path, false as boolean, setGenerateImages);
                   setUploadError(null);
                 }}
                 className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
               >
-                {stampDateImage?.path === image.path ? 'Cancel' : 'Stamp Date'}
+                {stampDateImages[image.path] ? 'Cancel' : 'Stamp Date'}
               </button>
             </div>
             
@@ -1092,16 +1172,16 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         </div>
         
         {/* Render replacement UI directly below this image if it's selected */}
-        {isSelected && renderImageReplacement(image)}
+        {activeImages[image.path] && renderImageReplacement(image)}
         
         {/* Render generate image UI directly below this image if it's selected */}
-        {generateImage?.path === image.path && renderImageGeneration(image)}
+        {generateImages[image.path] && renderImageGeneration(image)}
         
         {/* Render stamping UI directly below this image if it's selected for stamping */}
-        {stampImage?.path === image.path && renderStampingInterface(image)}
+        {stampImages[image.path] && renderStampingInterface(image)}
         
         {/* Render date stamping UI if this image is selected for date stamping */}
-        {stampDateImage?.path === image.path && renderDateStampingInterface(image)}
+        {stampDateImages[image.path] && renderDateStampingInterface(image)}
       </div>
     );
   };
