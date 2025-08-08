@@ -10,9 +10,6 @@ import { formatDateForDisplay } from '@/utils/dateUtils';
 // const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
 const API_BASE_URL = 'http://localhost:5000';
 
-// Module-scoped flag to guard fetch calls from React StrictMode double-mount in dev
-let __REPOS_FETCHED_ONCE__ = false;
-
 // API Response interfaces
 interface ApiImageResponse {
   alt_text?: string;
@@ -24,14 +21,6 @@ interface ImageManagerProps {
   repoName: string;
   onImageReplace: (oldImage: BlogImage, newImageFile: File) => void;
   post?: BlogPost | null;
-}
-
-interface Repository {
-  name: string;
-  path: string;
-  url?: string;
-  isCloned?: boolean;
-  isCurrent?: boolean;
 }
 
 const ImageManager: React.FC<ImageManagerProps> = ({
@@ -49,7 +38,6 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   // Per-image state data
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [isLoadingUrls, setIsLoadingUrls] = useState<Record<string, boolean>>({});
-  const [selectedLogoRepos, setSelectedLogoRepos] = useState<Record<string, string>>({});
   const [isStampingImages, setIsStampingImages] = useState<Record<string, boolean>>({});
   const [isDateStampingImages, setIsDateStampingImages] = useState<Record<string, boolean>>({});
   const [datesToStamp, setDatesToStamp] = useState<Record<string, string>>({});
@@ -67,7 +55,6 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   const [zoomModalOpen, setZoomModalOpen] = useState<boolean>(false);
   const [zoomedImageSrc, setZoomedImageSrc] = useState<string>('');
   const [zoomedImageAlt, setZoomedImageAlt] = useState<string>('');
-  const [repositories, setRepositories] = useState<Repository[]>([]);
   const [copiedText, setCopiedText] = useState<string>('');
   // Use a stable timestamp for this component's lifecycle to avoid initial double-requests
   const initialCacheBusterRef = useRef<number>(Date.now());
@@ -188,27 +175,6 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     });
   }, [images]);
 
-  // Fetch repositories for logo selection (run once on mount, guard StrictMode double-call)
-  const fetchedReposRef = useRef(false);
-  useEffect(() => {
-    if (fetchedReposRef.current || __REPOS_FETCHED_ONCE__) return;
-    fetchedReposRef.current = true;
-    __REPOS_FETCHED_ONCE__ = true;
-    const fetchRepositories = async () => {
-      try {
-        const response = await fetch('/api/repositories');
-        const data = await response.json();
-        if (data.repositories) {
-          setRepositories(data.repositories);
-        }
-      } catch (error) {
-        console.error('Error fetching repositories:', error);
-        setUploadError('Failed to load repositories for logo selection');
-      }
-    };
-    fetchRepositories();
-  }, []);
-
   // Initialize per-image defaults when inputs change
   useEffect(() => {
     // Initialize default dates for all images from post frontmatter if available
@@ -218,12 +184,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         setImageData(image.path, formattedDate, setDatesToStamp);
       });
     }
-
-    // Initialize default logo repos for all images
-    images.forEach(image => {
-      setImageData(image.path, repoName, setSelectedLogoRepos);
-    });
-  }, [repoName, post, images]);
+  }, [post, images]);
 
   // Filter images into hero and content images
   const heroImage = images.find((img) => img.inHero);
@@ -261,12 +222,6 @@ const ImageManager: React.FC<ImageManagerProps> = ({
 
   // Handle image stamping with logo - now accepts image parameter
   const handleStampImage = async (image: BlogImage) => {
-    const selectedLogoRepo = selectedLogoRepos[image.path];
-    if (!selectedLogoRepo) {
-      setUploadError('Please select a logo repository');
-      return;
-    }
-    
     setImageAction(image.path, true, setIsStampingImages);
     setUploadError(null);
     
@@ -279,7 +234,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         body: JSON.stringify({
           repoName,
           selectedImagePath: image.path,
-          selectedLogoRepo,
+          selectedLogoRepo: repoName, // Use current repository name directly
         }),
       });
       
@@ -654,7 +609,6 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   
   // Helper to render image stamping UI
   const renderStampingInterface = (image: BlogImage) => {
-    const selectedLogoRepo = selectedLogoRepos[image.path] || repoName;
     const isStamping = isStampingImages[image.path] || false;
     
     return (
@@ -664,29 +618,23 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         </h3>
         
         <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Select Logo from Repository:
-          </label>
-          <select
-            value={selectedLogoRepo}
-            onChange={(e) => setImageData(image.path, e.target.value, setSelectedLogoRepos)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-600"
-          >
-            {repositories.map((repo) => (
-              <option key={repo.name} value={repo.name}>
-                {repo.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Using logo from repository:
+            </span>
+            <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+              {repoName}
+            </span>
+          </div>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-300">
-            Each repository should have a logo.png at its root
+            Repository should have a logo.png at its root
           </p>
         </div>
         
         <div className="flex justify-end">
           <button
             onClick={() => handleStampImage(image)}
-            disabled={isStamping || !selectedLogoRepo}
+            disabled={isStamping}
             className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-primary-700 dark:hover:bg-primary-600 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isStamping ? 'Stamping...' : 'Stamp Now'}
