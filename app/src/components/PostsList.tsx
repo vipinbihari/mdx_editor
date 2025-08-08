@@ -37,6 +37,8 @@ const PostsList: React.FC<PostsListProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [postToDelete, setPostToDelete] = useState<PostCardData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // Stable cache-busters for hero images to avoid reload on unrelated re-renders
+  const [imageCacheBusters, setImageCacheBusters] = useState<Record<string, number>>({});
   
   // Calculate total pages
   const totalPages = Math.ceil(totalPosts / postsPerPage);
@@ -101,6 +103,21 @@ const PostsList: React.FC<PostsListProps> = ({
       loadPosts();
     }
   }, [repoName, currentPage, postsPerPage]);
+  
+  // Initialize cache-busters for hero images when posts list changes
+  useEffect(() => {
+    if (!posts || posts.length === 0) return;
+    setImageCacheBusters((prev) => {
+      const map = { ...prev } as Record<string, number>;
+      const timestamp = Date.now();
+      posts.forEach((p) => {
+        if (p.heroImage && !map[p.heroImage]) {
+          map[p.heroImage] = timestamp;
+        }
+      });
+      return map;
+    });
+  }, [posts]);
 
   // Generate pagination links
   const renderPagination = () => {
@@ -180,6 +197,12 @@ const PostsList: React.FC<PostsListProps> = ({
     return pages;
   };
 
+  // Return a stable cache-buster for a given image path (0 if not initialized)
+  const getCacheBuster = (imagePath: string | null): number => {
+    if (!imagePath) return 0;
+    return imageCacheBusters[imagePath] || 0;
+  };
+
   return (
     <div className="mb-8">
       <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Blog Posts</h2>
@@ -251,7 +274,7 @@ const PostsList: React.FC<PostsListProps> = ({
                       {post.heroImage ? (
                         <div className="relative w-full h-full">
                           <Image
-                            src={`/api/image?repoName=${repoName}&imagePath=${post.heroImage}&t=${Date.now()}`}
+                            src={`/api/image?repoName=${repoName}&imagePath=${post.heroImage}&t=${getCacheBuster(post.heroImage)}`}
                             alt={post.title}
                             fill
                             className="object-cover rounded-t-lg md:rounded-l-lg md:rounded-t-none"

@@ -10,6 +10,9 @@ import { formatDateForDisplay } from '@/utils/dateUtils';
 // const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
 const API_BASE_URL = 'http://localhost:5000';
 
+// Module-scoped flag to guard fetch calls from React StrictMode double-mount in dev
+let __REPOS_FETCHED_ONCE__ = false;
+
 // API Response interfaces
 interface ApiImageResponse {
   alt_text?: string;
@@ -66,7 +69,15 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   const [zoomedImageAlt, setZoomedImageAlt] = useState<string>('');
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [copiedText, setCopiedText] = useState<string>('');
-  const [imageCacheBusters, setImageCacheBusters] = useState<Record<string, number>>({});
+  // Use a stable timestamp for this component's lifecycle to avoid initial double-requests
+  const initialCacheBusterRef = useRef<number>(Date.now());
+  const [imageCacheBusters, setImageCacheBusters] = useState<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    images.forEach(img => {
+      map[img.path] = initialCacheBusterRef.current;
+    });
+    return map;
+  });
   const imageUrlInputRef = useRef<HTMLInputElement>(null);
   
   // Session storage helper functions
@@ -158,15 +169,15 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   
   const getCacheBuster = (imagePath: string): number => {
     // Always use the stored cache buster if it exists
-    // This prevents unnecessary reloads when component re-renders
-    return imageCacheBusters[imagePath] || 0;
+    // Fall back to the stable initial value to avoid a different first-render URL
+    return imageCacheBusters[imagePath] ?? initialCacheBusterRef.current;
   };
   
   // Initialize cache busters for all images to prevent unnecessary reloads
   useEffect(() => {
     setImageCacheBusters(prev => {
       const newBusters = { ...prev };
-      const timestamp = Date.now();
+      const timestamp = initialCacheBusterRef.current;
       images.forEach(image => {
         // Only set if not already set, to preserve existing cache busters
         if (!newBusters[image.path]) {
@@ -177,8 +188,12 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     });
   }, [images]);
 
-  // Fetch repositories for logo selection
+  // Fetch repositories for logo selection (run once on mount, guard StrictMode double-call)
+  const fetchedReposRef = useRef(false);
   useEffect(() => {
+    if (fetchedReposRef.current || __REPOS_FETCHED_ONCE__) return;
+    fetchedReposRef.current = true;
+    __REPOS_FETCHED_ONCE__ = true;
     const fetchRepositories = async () => {
       try {
         const response = await fetch('/api/repositories');
@@ -191,9 +206,11 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         setUploadError('Failed to load repositories for logo selection');
       }
     };
-    
     fetchRepositories();
-    
+  }, []);
+
+  // Initialize per-image defaults when inputs change
+  useEffect(() => {
     // Initialize default dates for all images from post frontmatter if available
     if (post?.frontmatter?.date) {
       const formattedDate = formatDateForDisplay(post.frontmatter.date);
@@ -1073,6 +1090,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
             alt={image.altText || filename} 
             width={300}
             height={200}
+            unoptimized
             priority={image.inHero} // Prioritize loading hero images
             style={{ objectFit: 'cover', width: '100%', height: '100%', cursor: 'zoom-in' }}
             onError={() => {

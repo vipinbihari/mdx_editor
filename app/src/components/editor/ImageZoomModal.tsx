@@ -62,6 +62,7 @@ const ImageZoomModal: React.FC<ImageZoomModalProps> = ({
               width={0}
               height={0}
               sizes="100vw"
+              unoptimized
               className="w-auto h-auto max-w-full max-h-[80vh] object-contain"
             />
           </div>
