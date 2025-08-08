@@ -1088,11 +1088,10 @@ const ImageManager: React.FC<ImageManagerProps> = ({
           <Image 
             src={`/api/image?repoName=${repoName}&imagePath=${image.path}&t=${getCacheBuster(image.path)}`} 
             alt={image.altText || filename} 
-            width={300}
-            height={200}
-            unoptimized
+            fill
+            className="object-cover"
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
             priority={image.inHero} // Prioritize loading hero images
-            style={{ objectFit: 'cover', width: '100%', height: '100%', cursor: 'zoom-in' }}
             onError={() => {
               console.error(`Failed to load image: ${image.path}`);
             }}
