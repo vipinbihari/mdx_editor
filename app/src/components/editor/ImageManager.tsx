@@ -7,8 +7,8 @@ import { formatDateForDisplay } from '@/utils/dateUtils';
 
 // API Configuration
 //
-// const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
-const API_BASE_URL = 'http://localhost:5000';
+ const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
+//const API_BASE_URL = 'http://localhost:5000';
 
 // API Response interfaces
 interface ApiImageResponse {
