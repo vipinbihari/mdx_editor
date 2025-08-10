@@ -7,13 +7,29 @@ import { formatDateForDisplay } from '@/utils/dateUtils';
 
 // API Configuration
 //
- const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
+const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
 //const API_BASE_URL = 'http://localhost:5000';
 
 // API Response interfaces
 interface ApiImageResponse {
+  image_id?: string;
   alt_text?: string;
-  download_url?: string;
+  download_url?: string | null;
+  status?: 'finished_successfully' | 'in_progress' | 'unknown';
+  dimensions?: { width: number; height: number };
+  size_bytes?: number;
+  message_id?: string;
+  author?: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface ApiExtractResponse {
+  success: boolean;
+  conversation_id?: string;
+  total_images?: number;
+  images_completed?: number;
+  images_in_progress?: number;
+  images: ApiImageResponse[];
 }
 
 interface ImageManagerProps {
@@ -46,7 +62,14 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   const [isGeneratingImages, setIsGeneratingImages] = useState<Record<string, boolean>>({});
   const [conversationIds, setConversationIds] = useState<Record<string, string>>({});
   const [isExtractingImages, setIsExtractingImages] = useState<Record<string, boolean>>({});
-  const [extractedImagesData, setExtractedImagesData] = useState<Record<string, Array<{altText: string, downloadUrl: string}>>>({});
+  const [extractedImagesData, setExtractedImagesData] = useState<Record<string, Array<{
+    altText: string;
+    downloadUrl: string;
+    status: 'finished_successfully' | 'in_progress' | 'unknown';
+    imageId: string;
+    dimensions?: { width: number; height: number };
+    sizeBytes?: number;
+  }>>>({});
   const [authTokens, setAuthTokens] = useState<Record<string, string>>({});
   const [isDeletingConversations, setIsDeletingConversations] = useState<Record<string, boolean>>({});
   
@@ -365,13 +388,32 @@ const ImageManager: React.FC<ImageManagerProps> = ({
       const response = await fetch(url);
       
       if (response.ok) {
-        const data = await response.json();
+        const data: ApiExtractResponse = await response.json();
         if (data.success && data.images && data.images.length > 0) {
-          const extractedImages = data.images.map((img: ApiImageResponse) => ({
-            altText: img.alt_text || '',
-            downloadUrl: img.download_url || ''
-          }));
+          const extractedImages: Array<{
+          altText: string;
+          downloadUrl: string;
+          status: 'finished_successfully' | 'in_progress' | 'unknown';
+          imageId: string;
+          dimensions?: { width: number; height: number };
+          sizeBytes?: number;
+        }> = data.images.map((img: ApiImageResponse) => ({
+          altText: img.alt_text || (img.status === 'in_progress' ? 'Image is still in progress' : ''),
+          downloadUrl: img.download_url || '',
+          status: (img.status || 'unknown') as 'finished_successfully' | 'in_progress' | 'unknown',
+          imageId: img.image_id || '',
+          dimensions: img.dimensions,
+          sizeBytes: img.size_bytes
+        }));
           setImageData(image.path, extractedImages, setExtractedImagesData);
+          
+          // Show status summary if there are images in progress
+          if (data.images_in_progress && data.images_in_progress > 0) {
+            const completedCount = data.images_completed || 0;
+            const inProgressCount = data.images_in_progress || 0;
+            const totalCount = data.total_images || data.images.length;
+            setUploadError(`Images status: ${completedCount} completed, ${inProgressCount} in progress (${totalCount} total)`);
+          }
         } else {
           setUploadError('No images found in conversation');
         }
@@ -407,7 +449,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         
         // Reset UI state for this image
         setImageData(image.path, '' as string, setConversationIds);
-        setImageData(image.path, [] as Array<{altText: string, downloadUrl: string}>, setExtractedImagesData);
+        setImageData(image.path, [] as Array<{altText: string; downloadUrl: string; status: 'finished_successfully' | 'in_progress' | 'unknown'; imageId: string; dimensions?: {width: number; height: number}; sizeBytes?: number}>, setExtractedImagesData);
         
         // Show success (could add a success message if needed)
         console.log('Conversation deleted successfully');
@@ -457,7 +499,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         // Reset UI state - close the generate image panel for this image
         clearImageAction(image.path, setGenerateImages);
         setImageData(image.path, '' as string, setConversationIds);
-        setImageData(image.path, [] as Array<{altText: string, downloadUrl: string}>, setExtractedImagesData);
+        setImageData(image.path, [] as Array<{altText: string; downloadUrl: string; status: 'finished_successfully' | 'in_progress' | 'unknown'; imageId: string; dimensions?: {width: number; height: number}; sizeBytes?: number}>, setExtractedImagesData);
         setImageData(image.path, 'XYZ' as string, setAuthTokens); // Reset to default
         
         // Refresh image to show the updated image
@@ -813,6 +855,46 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                 {extractedImages.map((img, index) => (
                   <div key={index} className="p-3 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800">
                     <div className="space-y-2">
+                      {/* Status Badge and Image Info */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          img.status === 'finished_successfully' 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : img.status === 'in_progress'
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+                        }`}>
+                          {img.status === 'finished_successfully' && (
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                          {img.status === 'in_progress' && (
+                            <svg className="animate-spin w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          )}
+                          {img.status === 'unknown' && (
+                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                          {img.status === 'finished_successfully' ? 'Ready' : 
+                           img.status === 'in_progress' ? 'Generating...' : 'Unknown'}
+                        </span>
+                        
+                        {/* Image metadata */}
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {img.dimensions && (
+                            <span className="mr-2">{img.dimensions.width}×{img.dimensions.height}</span>
+                          )}
+                          {img.sizeBytes && (
+                            <span>{(img.sizeBytes / 1024 / 1024).toFixed(1)}MB</span>
+                          )}
+                        </div>
+                      </div>
+                      
                       <div>
                         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Alt Text:
@@ -1088,7 +1170,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
                   if (!isCurrentlyGenerating) {
                     const storedConvId = loadConversationId(image);
                     setImageData(image.path, storedConvId, setConversationIds);
-                    setImageData(image.path, [] as Array<{altText: string, downloadUrl: string}>, setExtractedImagesData);
+                    setImageData(image.path, [] as Array<{altText: string; downloadUrl: string; status: 'finished_successfully' | 'in_progress' | 'unknown'; imageId: string; dimensions?: {width: number; height: number}; sizeBytes?: number}>, setExtractedImagesData);
                     setImageData(image.path, 'XYZ' as string, setAuthTokens); // Always default to XYZ
                   }
                 }}
