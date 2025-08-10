@@ -32,6 +32,14 @@ interface ApiExtractResponse {
   images: ApiImageResponse[];
 }
 
+interface AutoImageRequest {
+  repoName: string;
+  slug: string;
+  authToken: string;
+  type: 'hero' | 'inblog';
+  placeholder_number?: number;
+}
+
 interface ImageManagerProps {
   images: BlogImage[];
   repoName: string;
@@ -72,6 +80,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
   }>>>({});
   const [authTokens, setAuthTokens] = useState<Record<string, string>>({});
   const [isDeletingConversations, setIsDeletingConversations] = useState<Record<string, boolean>>({});
+  const [isAutoGeneratingImages, setIsAutoGeneratingImages] = useState<Record<string, boolean>>({});
   
   // Global states that remain single-value
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -428,6 +437,65 @@ const ImageManager: React.FC<ImageManagerProps> = ({
     }
   };
   
+  // Handle auto image generation
+  const handleAutoImage = async (image: BlogImage) => {
+    if (!post?.frontmatter?.slug) {
+      alert('Post slug not available');
+      return;
+    }
+
+    const authToken = authTokens[image.path] || 'xyz';
+    
+    // Determine type and placeholder_number
+    const type = image.inHero ? 'hero' : 'inblog';
+    let placeholder_number: number | undefined;
+    
+    if (type === 'inblog') {
+      // Find the index of this image among in-blog images
+      const contentImages = images.filter(img => !img.inHero);
+      placeholder_number = contentImages.findIndex(img => img.path === image.path);
+      if (placeholder_number === -1) placeholder_number = 0; // Fallback
+    }
+
+    setIsAutoGeneratingImages(prev => ({ ...prev, [image.path]: true }));
+    
+    try {
+      const requestBody: AutoImageRequest = {
+        repoName,
+        slug: post.frontmatter.slug,
+        authToken,
+        type
+      };
+      
+      // Only add placeholder_number for in-blog images
+      if (type === 'inblog' && placeholder_number !== undefined) {
+        requestBody.placeholder_number = placeholder_number;
+      }
+
+      // Make the API call - don't wait for response as it takes 5 minutes
+      fetch('https://cms.apanaresult.com/api/images/generate-and-replace-all', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic dmlwaW46dmlwaW4=',
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
+        },
+        body: JSON.stringify(requestBody)
+      }).catch(error => {
+        console.error('Auto image generation error:', error);
+      });
+      
+      // Immediately show success message without waiting for response
+      alert('Task sent! Auto image generation has been initiated.');
+      
+    } catch (error) {
+      console.error('Error in auto image generation:', error);
+      alert('Error initiating auto image generation');
+    } finally {
+      setIsAutoGeneratingImages(prev => ({ ...prev, [image.path]: false }));
+    }
+  };
+
   // Handle conversation deletion - now accepts image parameter
   const handleDeleteConversation = async (image: BlogImage) => {
     const conversationId = conversationIds[image.path];
@@ -750,23 +818,43 @@ const ImageManager: React.FC<ImageManagerProps> = ({
             <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
               Step 1: Generate AI prompt and send to image generation service
             </p>
-            <button
-              onClick={() => handleGenerateImage(image)}
-              disabled={isGenerating}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
-              {isGenerating ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Generating...
-                </>
-              ) : (
-                'Generate Now'
-              )}
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handleGenerateImage(image)}
+                disabled={isGenerating}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {isGenerating ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Generating...
+                  </>
+                ) : (
+                  'Generate Now'
+                )}
+              </button>
+              
+              <button
+                onClick={() => handleAutoImage(image)}
+                disabled={isAutoGeneratingImages[image.path] || false}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {isAutoGeneratingImages[image.path] ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Sending...
+                  </>
+                ) : (
+                  'Auto Image'
+                )}
+              </button>
+            </div>
           </div>
           
           {/* Step 2: Conversation ID and Auth Token (Always visible) */}
