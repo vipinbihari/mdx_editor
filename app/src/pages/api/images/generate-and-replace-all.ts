@@ -13,6 +13,13 @@ const MAX_POLL_TIME_MS = 5 * 60 * 1000; // 5 minutes maximum
 interface ApiImageResponse {
   alt_text?: string;
   download_url?: string;
+  status?: string;
+  image_id?: string;
+  dimensions?: { width: number; height: number };
+  size_bytes?: number;
+  message_id?: string;
+  author?: string;
+  metadata?: Record<string, unknown>;
 }
 
 interface GenerateAndReplaceRequest {
@@ -186,8 +193,8 @@ const extractImagesOnce = async (conversationId: string, authToken: string = 'XY
     
     if (data.success && data.images && data.images.length > 0) {
       // Check if images have valid download URLs (not null/undefined)
-      const readyImages = data.images.filter((img: any) => img.download_url && img.download_url !== null);
-      const inProgressImages = data.images.filter((img: any) => !img.download_url || img.download_url === null);
+      const readyImages = data.images.filter((img: ApiImageResponse) => img.download_url && img.download_url !== null);
+      const inProgressImages = data.images.filter((img: ApiImageResponse) => !img.download_url || img.download_url === null);
       
       console.log(`📊 Image Status Summary:`, {
         total: data.images.length,
@@ -197,7 +204,7 @@ const extractImagesOnce = async (conversationId: string, authToken: string = 'XY
         processing: data.images_in_progress || 0
       });
       
-      data.images.forEach((img: any, i: number) => {
+      data.images.forEach((img: ApiImageResponse, i: number) => {
         console.log(`  📷 Image ${i + 1}:`, {
           alt_text: img.alt_text,
           download_url: img.download_url ? img.download_url.substring(0, 100) + '...' : 'NULL (still processing)',
