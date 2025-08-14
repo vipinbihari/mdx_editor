@@ -7,8 +7,8 @@ import { BlogImage } from '@/types';
 // API Configuration
 const API_BASE_URL = 'https://cms.apanaresult.com/oai_reverse';
 //const API_BASE_URL = 'http://localhost:5000';
-const POLL_INTERVAL_MS = 60 * 1000; // 60 seconds
-const MAX_POLL_TIME_MS = 5 * 60 * 1000; // 5 minutes maximum
+const POLL_INTERVAL_MS = 30 * 1000; // 60 seconds
+const MAX_POLL_TIME_MS = 8 * 60 * 1000; // 5 minutes maximum
 
 interface ApiImageResponse {
   alt_text?: string;
