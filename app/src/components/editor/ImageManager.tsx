@@ -301,7 +301,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
         const response = await fetch('/api/system-prompt');
         const data = await response.json();
         if (data.prompt) {
-          return `${data.prompt}\n\n${content}`;
+          return `${data.prompt}\n\n${content}\nTHINK HARD BEFORE CREATING THE IMAGE.`;
         }
         return content;
       } else {
@@ -323,7 +323,7 @@ const ImageManager: React.FC<ImageManagerProps> = ({
           const placeholderNumber = currentImageIndex + 1; // 1-based indexing
           
           // Append the specific placeholder instruction for this image
-          const placeholderInstruction = `\n\nCREATE IMAGE FOR PLACEHOLDER ${placeholderNumber} NOW`;
+          const placeholderInstruction = `\n\nCREATE IMAGE FOR PLACEHOLDER ${placeholderNumber} NOW, THINK HARD BEFORE CREATING THE IMAGE.`;
           
           return `${data.prompt}\n\n${transformedContent}${placeholderInstruction}`;
         }
