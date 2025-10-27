@@ -54,7 +54,7 @@ export default async function handler(
 
     // Add Authorization header for chatgpt.com URLs
     if (url.hostname === 'chatgpt.com' || url.hostname.endsWith('.chatgpt.com')) {
-      const authToken = process.env.CHATGPT_AUTH_TOKEN;
+      const authToken = process.env.AUTH_TOKEN;
       if (!authToken) {
         return res.status(400).json({ 
           error: 'CHATGPT_AUTH_TOKEN environment variable is required for chatgpt.com URLs' 
