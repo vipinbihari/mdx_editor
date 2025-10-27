@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import path from 'path';
 import fs from 'fs-extra';
+import dotenv from 'dotenv';
 
 export default async function handler(
   req: NextApiRequest,
@@ -12,6 +13,19 @@ export default async function handler(
   }
 
   const { imageUrl, repoName, slug, oldImagePath } = req.body;
+
+  // Load environment variables from hardcoded path
+  const envPath = '/home/ubuntu/oai_reverse/.env';
+  try {
+    if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath });
+      console.log(`Loaded environment variables from: ${envPath}`);
+    } else {
+      console.warn(`Environment file not found at: ${envPath}`);
+    }
+  } catch (error) {
+    console.error(`Error loading environment file from ${envPath}:`, error);
+  }
 
   // Validate required fields
   if (!imageUrl || !repoName || !slug || !oldImagePath) {
@@ -33,12 +47,25 @@ export default async function handler(
     }
 
     // Fetch the image from the external URL
+    const headers: Record<string, string> = {
+      'User-Agent': 'MDX-Editor/1.0 (Image Fetcher)',
+      'Accept': 'image/*',
+    };
+
+    // Add Authorization header for chatgpt.com URLs
+    if (url.hostname === 'chatgpt.com' || url.hostname.endsWith('.chatgpt.com')) {
+      const authToken = process.env.CHATGPT_AUTH_TOKEN;
+      if (!authToken) {
+        return res.status(400).json({ 
+          error: 'CHATGPT_AUTH_TOKEN environment variable is required for chatgpt.com URLs' 
+        });
+      }
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
     const response = await fetch(imageUrl, {
       method: 'GET',
-      headers: {
-        'User-Agent': 'MDX-Editor/1.0 (Image Fetcher)',
-        'Accept': 'image/*',
-      },
+      headers,
     });
 
     if (!response.ok) {
